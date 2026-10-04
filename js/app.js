@@ -156,75 +156,56 @@ async function generateImagePrompt() {
   finally { setBusy(button, false, '▶ Generate Prompt Video Flow'); }
 }
 
-// Voice Replication UI is injected into the existing empty Voice panel in index.html.
+// Voice Conversion UI (Speech-to-Speech)
+let convertSourceBase64 = '', convertSourceMime = '';
+
 function buildVoicePanel() {
   const panel = $('voicePanel'); if (!panel || panel.dataset.ready) return;
   panel.dataset.ready = '1';
-  panel.innerHTML = `
-    <div class="notice"><strong>Voice Clone Gemini</strong><br>Gunakan suara milik Anda sendiri atau suara yang Anda punya izin untuk replikasi. Gemini membutuhkan audio referensi 10–30 detik dan rekaman consent dari pembicara yang sama.</div>
-    <label>Nama Voice</label><input id="cloneVoiceName" placeholder="Contoh: Suara Ahmad" maxlength="80">
-    <label>Audio Referensi (10–30 detik)</label>
-    <div class="upload" id="cloneSourceBox"><div style="font-size:36px">🎙️</div><strong>Pilih audio referensi</strong><small>WAV 24kHz mono 16-bit direkomendasikan</small><input id="cloneSourceInput" type="file" accept="audio/*" hidden></div>
-    <audio id="cloneSourcePreview" controls style="display:none;width:100%;margin-bottom:18px"></audio>
-    <label>Audio Consent</label>
-    <div class="notice" style="font-size:14px">Baca jelas: “I am the owner of this voice and I consent to Google using this voice to create a synthetic voice model.”</div>
-    <div class="upload" id="cloneConsentBox"><div style="font-size:36px">🔐</div><strong>Pilih rekaman consent</strong><small>Harus direkam oleh orang yang sama</small><input id="cloneConsentInput" type="file" accept="audio/*" hidden></div>
-    <audio id="cloneConsentPreview" controls style="display:none;width:100%;margin-bottom:18px"></audio>
-    <button class="primary" id="createVoiceButton">〽 Buat Voice Clone</button>
-    <label>Voice Clone Tersimpan</label><select id="clonedVoiceSelect"><option value="">-- Suara bawaan Gemini --</option></select>
-    <button class="primary" id="refreshVoicesButton" style="background:#263548">↻ Muat Voice</button>
-    <button class="primary" id="deleteVoiceButton" style="background:#c53030;display:none">🗑 Hapus Voice Terpilih</button>
-    <div class="info">Voice clone disimpan sebagai voice ID di project Gemini Anda. Voice ID tersebut kemudian otomatis tersedia di tab TTS.</div>`;
 
-  $('cloneSourceBox').onclick = () => $('cloneSourceInput').click();
-  $('cloneConsentBox').onclick = () => $('cloneConsentInput').click();
-  $('cloneSourceInput').onchange = e => handleCloneFile(e.target.files?.[0], 'source');
-  $('cloneConsentInput').onchange = e => handleCloneFile(e.target.files?.[0], 'consent');
-  $('createVoiceButton').onclick = createVoiceClone;
-  $('refreshVoicesButton').onclick = loadVoices;
-  $('deleteVoiceButton').onclick = deleteSelectedVoice;
-  $('clonedVoiceSelect').onchange = () => { if ($('clonedVoiceSelect').value) $('voiceSelect').value = $('clonedVoiceSelect').value; $('deleteVoiceButton').style.display = $('clonedVoiceSelect').value ? 'block' : 'none'; };
-  loadVoices();
-}
-async function handleCloneFile(file, type) {
-  if (!file) return;
-  if (file.size > 10 * 1024 * 1024) return showStatus('File voice maksimal 10MB.');
-  const b64 = await readFileAsBase64(file);
-  if (type === 'source') { voiceSourceBase64 = b64; voiceSourceMime = file.type || 'audio/wav'; $('cloneSourcePreview').src = URL.createObjectURL(file); $('cloneSourcePreview').style.display = 'block'; }
-  else { voiceConsentBase64 = b64; voiceConsentMime = file.type || 'audio/wav'; $('cloneConsentPreview').src = URL.createObjectURL(file); $('cloneConsentPreview').style.display = 'block'; }
-  showStatus(`${type === 'source' ? 'Audio referensi' : 'Audio consent'} siap.`);
-}
-async function createVoiceClone() {
-  if (!voiceSourceBase64 || !voiceConsentBase64) return showStatus('Pilih audio referensi dan audio consent terlebih dahulu.');
-  const button = $('createVoiceButton'); setBusy(button, true, '〽 Buat Voice Clone'); showStatus('Membuat voice clone di Gemini...');
-  try {
-    const data = await callBackend({ mode: 'create_voice', displayName: $('cloneVoiceName').value.trim() || 'AnaStudio Voice', sourceAudioBase64: voiceSourceBase64, sourceMimeType: voiceSourceMime, consentAudioBase64: voiceConsentBase64, consentMimeType: voiceConsentMime });
-    if (!data.voiceId) throw new Error('Gemini tidak mengembalikan voice ID.');
-    showStatus(`Voice berhasil dibuat: ${data.voiceId}`);
-    await loadVoices();
-    $('clonedVoiceSelect').value = data.voiceId;
-    $('voiceSelect').value = data.voiceId;
-    $('deleteVoiceButton').style.display = 'block';
-  } catch (e) { showStatus('Voice clone gagal: ' + e.message); }
-  finally { setBusy(button, false, '〽 Buat Voice Clone'); }
-}
-async function loadVoices() {
-  if (!$('clonedVoiceSelect')) return;
-  try {
-    const data = await callBackend({ mode: 'list_voices' });
-    const select = $('clonedVoiceSelect');
-    select.innerHTML = '<option value="">-- Suara bawaan Gemini --</option>';
-    for (const voice of data.voices || []) {
-      const opt = document.createElement('option'); opt.value = voice.id; opt.textContent = `${voice.display_name || 'Voice'} — ${voice.id}`; select.appendChild(opt);
-      if (!$('voiceSelect').querySelector(`option[value="${CSS.escape(voice.id)}"]`)) { const t = document.createElement('option'); t.value = voice.id; t.textContent = `〽 ${voice.display_name || voice.id}`; $('voiceSelect').appendChild(t); }
+  $('convertSourceBox').onclick = () => $('convertSourceInput').click();
+  $('convertSourceInput').onchange = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) return showStatus('Ukuran file audio maksimal 25MB.');
+    const b64 = await readFileAsBase64(file);
+    convertSourceBase64 = b64;
+    convertSourceMime = file.type || 'audio/webm';
+    $('convertSourcePreview').src = URL.createObjectURL(file);
+    $('convertSourcePreview').style.display = 'block';
+    showStatus('Audio sumber siap dikonversi.');
+  };
+
+  $('convertVoiceButton').onclick = async () => {
+    if (!convertSourceBase64) return showStatus('Silakan upload audio sumber terlebih dahulu.');
+    const button = $('convertVoiceButton');
+    setBusy(button, true, '▶ Konversi Suara');
+    showStatus('Memproses konversi suara (STT ➔ TTS)...');
+    try {
+      const data = await callBackend({
+        mode: 'convert_voice',
+        audioBase64: convertSourceBase64,
+        mimeType: convertSourceMime,
+        voiceName: $('convertVoiceSelect')?.value || 'Kore',
+        language: $('convertLanguage')?.value || 'Indonesia'
+      });
+
+      $('convertTranscriptionOutput').value = data.transcription || '';
+      const blob = await audioBase64ToMp3(data.audioBase64, data.mimeType || 'audio/wav');
+      if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+      currentAudioUrl = URL.createObjectURL(blob);
+      $('audioPlayer').src = currentAudioUrl;
+      $('audioPlayer').style.display = 'block';
+      $('downloadButton').href = currentAudioUrl;
+      $('downloadButton').style.display = 'block';
+      $('downloadButton').download = 'AnaStudio_VoiceConverted.mp3';
+      showStatus('Konversi suara berhasil dibuat!');
+    } catch (e) {
+      showStatus('Konversi suara gagal: ' + e.message);
+    } finally {
+      setBusy(button, false, '▶ Konversi Suara');
     }
-  } catch (e) { showStatus('Voice list gagal dimuat: ' + e.message); }
-}
-async function deleteSelectedVoice() {
-  const voiceId = $('clonedVoiceSelect').value; if (!voiceId) return;
-  if (!confirm('Hapus voice clone ini dari project Gemini?')) return;
-  try { await callBackend({ mode: 'delete_voice', voiceId }); $('voiceSelect').value = 'Kore'; await loadVoices(); $('deleteVoiceButton').style.display = 'none'; showStatus('Voice clone berhasil dihapus.'); }
-  catch (e) { showStatus('Gagal menghapus voice: ' + e.message); }
+  };
 }
 
 async function audioBase64ToMp3(base64, mimeType) {
