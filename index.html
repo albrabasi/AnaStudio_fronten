@@ -63,7 +63,26 @@
       <label for="sttOutput">Hasil Transkripsi</label>
       <textarea id="sttOutput" readonly placeholder="Hasil transkripsi teks akan muncul di sini..."></textarea>
     </section>
-    <section id="voicePanel" class="panel"><div class="notice">Pilih suara dan karakter di tab TTS atau Image. Pengaturan ini digunakan untuk hasil audio.</div></section>
+    <section id="voicePanel" class="panel">
+      <div class="notice"><strong>Ubah Suara (Voice Conversion)</strong><br>Upload atau rekam audio sumber (misal suara Mbah Karyo). AI akan mentranskripsikan audio tersebut lalu mengubahnya ke suara pilihan Gemini secara instan dan gratis (Free Tier).</div>
+      <label>Audio Sumber (MP3, WAV, M4A, WEBP, OGG)</label>
+      <div class="upload" id="convertSourceBox"><div style="font-size:36px">🎙️</div><strong>Pilih audio sumber</strong><small>Maksimal 25MB</small><input id="convertSourceInput" type="file" accept="audio/*" hidden></div>
+      <audio id="convertSourcePreview" controls style="display:none;width:100%;margin-bottom:18px"></audio>
+      <label for="convertVoiceSelect">Pilih Suara Target</label>
+      <select id="convertVoiceSelect">
+        <option value="Kore">Kore (Wanita - Cerah & Ramah)</option>
+        <option value="Puck">Puck (Pria - Natural)</option>
+        <option value="Charon">Charon (Pria - Dewasa)</option>
+        <option value="Fenrir">Fenrir (Pria - Tegas)</option>
+        <option value="Aoede">Aoede (Wanita - Natural)</option>
+      </select>
+      <label for="convertLanguage">Bahasa Audio</label>
+      <select id="convertLanguage"><option value="Indonesia">Indonesia</option><option value="English">English</option></select>
+      <button class="primary" id="convertVoiceButton">▶ Konversi Suara</button>
+      <label for="convertTranscriptionOutput">Hasil Transkripsi Teks</label>
+      <textarea id="convertTranscriptionOutput" readonly placeholder="Teks hasil transkripsi akan muncul di sini..."></textarea>
+      <div class="info">Hasil audio konversi dapat diputar atau di-download melalui pemutar utama di bawah.</div>
+    </section>
     <section id="imagePanel" class="panel">
       <div class="notice">Upload gambar produk. AI akan membaca gambar lalu membuat prompt video siap ditempel ke Flow.</div>
       <label for="imageInput">Gambar Produk</label>
