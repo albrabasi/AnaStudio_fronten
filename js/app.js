@@ -141,6 +141,36 @@ $('imageInput')?.addEventListener('change', async e => {
 });
 $('generateImageButton')?.addEventListener('click', generateImagePrompt);
 $('copyPromptButton')?.addEventListener('click', async () => { await navigator.clipboard.writeText($('promptOutput').value); showStatus('Prompt berhasil disalin.'); });
+$('generateHookBtn')?.addEventListener('click', () => generateHookOrCta('hook'));
+$('generateCtaBtn')?.addEventListener('click', () => generateHookOrCta('cta'));
+
+async function generateHookOrCta(type) {
+  if (!imageBase64) return showStatus('Silakan upload gambar produk terlebih dahulu.');
+  const btnId = type === 'hook' ? 'generateHookBtn' : 'generateCtaBtn';
+  const button = $(btnId);
+  const originalText = button.textContent;
+  setBusy(button, true, originalText);
+  showStatus(`AI sedang membuat ${type.toUpperCase()}...`);
+  try {
+    const data = await callBackend({
+      mode: 'generate_hook_cta',
+      type,
+      imageBase64,
+      mimeType: imageMimeType,
+      videoType: $('imageStyle').value
+    });
+    if (type === 'hook') {
+      $('hookInput').value = data.result || '';
+    } else {
+      $('ctaInput').value = data.result || '';
+    }
+    showStatus(`AI ${type.toUpperCase()} berhasil dibuat!`);
+  } catch (e) {
+    showStatus(`Gagal membuat ${type}: ` + e.message);
+  } finally {
+    setBusy(button, false, originalText);
+  }
+}
 async function generateImagePrompt() {
   if (!imageBase64) return showStatus('Silakan upload gambar terlebih dahulu.');
   const button = $('generateImageButton'); setBusy(button, true, '▶ Generate Prompt Video Flow'); showStatus('AI sedang membaca gambar...');
@@ -151,10 +181,44 @@ async function generateImagePrompt() {
       visualStyle: $('videoStyle').value, hook: $('hookInput').value, cta: $('ctaInput').value,
       language: $('imageLanguage').value, voiceName: $('imageVoice').value
     });
-    $('promptOutput').value = data.prompt || ''; $('copyPromptButton').style.display = 'block'; showStatus('Prompt video berhasil dibuat.');
+    $('promptOutput').value = data.prompt || ''; 
+    $('copyPromptButton').style.display = 'block'; 
+    $('generateAudioFromPromptButton').style.display = 'block';
+    showStatus('Prompt video berhasil dibuat.');
   } catch (e) { showStatus('Terjadi kesalahan: ' + e.message); }
   finally { setBusy(button, false, '▶ Generate Prompt Video Flow'); }
 }
+
+$('generateAudioFromPromptButton')?.addEventListener('click', async () => {
+  const promptText = $('promptOutput')?.value.trim();
+  if (!promptText) return showStatus('Prompt video belum tersedia.');
+  const button = $('generateAudioFromPromptButton');
+  setBusy(button, true, '▶ Buat Suara Narasi dari Prompt');
+  showStatus('Membuat suara narasi dari prompt...');
+  try {
+    const data = await callBackend({
+      mode: 'tts',
+      text: promptText,
+      voiceName: $('imageVoice')?.value || 'Kore',
+      style: 'natural, jelas, ramah',
+      speed: '1.0',
+      character: 'ramah'
+    });
+    const blob = await audioBase64ToMp3(data.audioBase64, data.mimeType || 'audio/wav');
+    if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+    currentAudioUrl = URL.createObjectURL(blob);
+    $('audioPlayer').src = currentAudioUrl;
+    $('audioPlayer').style.display = 'block';
+    $('downloadButton').href = currentAudioUrl;
+    $('downloadButton').style.display = 'block';
+    $('downloadButton').download = ($('imageFileName')?.value.trim() || 'AnaPromptVoice') + '.mp3';
+    showStatus('Suara narasi berhasil dibuat dari prompt!');
+  } catch (e) {
+    showStatus('Gagal membuat suara narasi: ' + e.message);
+  } finally {
+    setBusy(button, false, '▶ Buat Suara Narasi dari Prompt');
+  }
+});
 
 // Voice Conversion UI (Speech-to-Speech)
 let convertSourceBase64 = '', convertSourceMime = '';
