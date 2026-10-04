@@ -14,11 +14,9 @@ let imageMimeType = "";
 // 1. Initial Setup: Tab Navigation
 document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
-        // Hapus class active dari semua
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
 
-        // Aktifkan tab yang diklik
         tab.classList.add('active');
         $(tab.dataset.tab).classList.add('active');
     });
@@ -173,7 +171,6 @@ async function generateVoice() {
         const data = await response.json();
         if (!response.ok || !data.success) throw Error(data.error || 'Gagal membuat audio');
 
-        // Proses Blob Audio
         const blob = convertBase64PcmToMp3(data.audioBase64, 24000, 1);
 
         if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
