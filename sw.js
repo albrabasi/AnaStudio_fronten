@@ -1,4 +1,4 @@
-const CACHE_NAME = "anastudio-v3";
+const CACHE_NAME = "anastudio-v5";
 
 const STATIC_ASSETS = [
   "./",
