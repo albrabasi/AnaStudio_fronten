@@ -40,11 +40,30 @@
       <label for="speedSelect">Kecepatan Bicara</label><select id="speedSelect"><option value="1.0">Normal (1.0x)</option><option value="1.2">Cepat (1.2x)</option><option value="1.5">Sangat Cepat (1.5x)</option><option value="0.8">Pelan (0.8x)</option></select>
       <label for="characterSelect">Karakter Suara</label><select id="characterSelect"><option value="ramah">Dewasa Ramah</option><option value="anak">Anak-anak</option><option value="lansia">Lansia</option><option value="robot">Robot/AI</option><option value="tegas">Tegas</option></select>
       <label for="styleInput">Preset Karakter Suara</label><input id="styleInput" placeholder="Kosongkan untuk suara pria dewasa yang ramah dan natural">
-      <label for="textInput">Teks Narasi</label><textarea id="textInput" maxlength="5000">Halo,Shabat. Selamat datang di AnaStudio. Ini contoh suara hasil teks to speech di aplikai ini.</textarea><div class="count"><span id="characterCount">0</span> / 5000 karakter</div>
+      <label for="textInput">Teks Narasi</label><textarea id="textInput" maxlength="5000">Halo, saya Naya. Selamat datang di AnaStudio.</textarea><div class="count"><span id="characterCount">0</span> / 5000 karakter</div>
       <label for="fileNameInput">Nama File Audio</label><input id="fileNameInput" placeholder="AnaAudio_01" maxlength="80">
       <button class="primary" id="generateButton">▶ Generate MP3</button>
     </section>
-    <section id="sttPanel" class="panel"><div class="notice">Fitur Speech to Text akan ditambahkan pada tahap berikutnya.</div></section>
+    <section id="sttPanel" class="panel">
+      <div class="notice">Rekam suara langsung atau upload file audio. AI akan mentranskripsikannya menjadi teks.</div>
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <button type="button" id="recordButton" class="primary" style="background:linear-gradient(90deg,#e53e3e,#dd6b20);margin-top:0;">🔴 Mulai Rekam</button>
+        <button type="button" id="stopRecordButton" class="primary" style="background:linear-gradient(90deg,#718096,#4a5568);margin-top:0;display:none;" disabled>⏹ Berhenti Rekam</button>
+      </div>
+      <div class="upload" id="sttUploadBox" style="margin-bottom:15px;">
+        <div style="font-size:36px">🎙️＋</div>
+        <strong>Upload File Audio</strong>
+        <small>MP3, WAV, M4A, WEBP, OGG (maks. 25MB)</small>
+        <input id="audioFileInput" type="file" accept="audio/*" hidden>
+      </div>
+      <audio id="sttAudioPreview" controls style="display:none;margin-bottom:20px;width:100%"></audio>
+      <label for="sttLanguage">Bahasa Audio</label>
+      <select id="sttLanguage"><option value="Indonesia">Indonesia</option><option value="English">English</option></select>
+      <button class="primary" id="generateSttButton">▶ Transkrip Audio ke Teks</button>
+      <button class="primary" id="copySttButton" style="display:none;background:#263548">⧉ Copy Hasil Transkripsi</button>
+      <label for="sttOutput">Hasil Transkripsi</label>
+      <textarea id="sttOutput" readonly placeholder="Hasil transkripsi teks akan muncul di sini..."></textarea>
+    </section>
     <section id="voicePanel" class="panel"><div class="notice">Pilih suara dan karakter di tab TTS atau Image. Pengaturan ini digunakan untuk hasil audio.</div></section>
     <section id="imagePanel" class="panel">
       <div class="notice">Upload gambar produk. AI akan membaca gambar lalu membuat prompt video siap ditempel ke Flow.</div>
