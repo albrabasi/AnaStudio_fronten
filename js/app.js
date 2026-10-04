@@ -1,4 +1,4 @@
-const BACKEND_URL="https://naya-tts-backend.vercel.app/api/generate";
+const BACKEND_URL="https://backend-gamma-liart-yfgzfi9y5j.vercel.app/api/generate";
 const $=id=>document.getElementById(id);
 let currentAudioUrl=null, imageBase64="", imageMimeType="";
 
