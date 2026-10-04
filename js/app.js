@@ -39,6 +39,7 @@ function readFileAsBase64(file) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   tab.classList.add('active');
   $(tab.dataset.tab)?.classList.add('active');
+  showStatus('');
 }));
 
 // TTS
