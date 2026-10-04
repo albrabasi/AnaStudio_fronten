@@ -2,6 +2,7 @@
  * AnaStudio - Gemini 3.8 TTS + STT + Voice Replication + Image Prompt
  */
 const BACKEND_URL = 'https://backend-gamma-liart-yfgzfi9y5j.vercel.app/api/generate';
+const TTS_MODEL = 'gemini-3.8-flash-tts';
 const $ = id => document.getElementById(id);
 let currentAudioUrl = null;
 let imageBase64 = '', imageMimeType = '';
@@ -58,7 +59,7 @@ async function generateVoice() {
       voiceName: $('voiceSelect')?.value || 'Kore',
       speed: $('speedSelect')?.value || '1.0',
       character: $('characterSelect')?.value || 'ramah',
-      model: $('modelSelect')?.value || 'gemini-3.8-flash-tts'
+      model: TTS_MODEL
     });
 
     const blob = await audioBase64ToMp3(data.audioBase64, data.mimeType || 'audio/wav');
@@ -225,12 +226,6 @@ async function deleteSelectedVoice() {
   catch (e) { showStatus('Gagal menghapus voice: ' + e.message); }
 }
 
-// Add current Gemini 3.8 model and dynamic cloned voices to the existing TTS controls.
-function upgradeTtsControls() {
-  const model = $('modelSelect');
-  if (model) { model.innerHTML = ''; const o = document.createElement('option'); o.value = 'gemini-3.8-flash-tts'; o.textContent = 'Gemini 3.8 Flash TTS'; model.appendChild(o); }
-}
-
 async function audioBase64ToMp3(base64, mimeType) {
   const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
   if (!mimeType.includes('wav') && !mimeType.includes('audio')) return new Blob([raw], { type: mimeType || 'audio/wav' });
@@ -255,5 +250,4 @@ async function audioBase64ToMp3(base64, mimeType) {
   }
 }
 
-upgradeTtsControls();
 buildVoicePanel();
