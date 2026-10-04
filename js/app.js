@@ -42,83 +42,6 @@ $('copyPromptButton')?.addEventListener('click', async () => {
     showStatus('Prompt berhasil disalin.');
 });
 
-// STT Variables & Event Listeners
-let mediaRecorder = null;
-let audioChunks = [];
-let sttAudioBase64 = "";
-let sttAudioMimeType = "";
-
-$('recordButton')?.addEventListener('click', async () => {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) audioChunks.push(event.data);
-        };
-
-        mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            sttAudioMimeType = 'audio/webm';
-            sttAudioBase64 = '';
-
-            const reader = new FileReader();
-            reader.onload = () => {
-                sttAudioBase64 = reader.result.split(',')[1];
-                $('sttAudioPreview').src = reader.result;
-                $('sttAudioPreview').style.display = 'block';
-                showStatus('Rekaman audio siap ditranskrip.');
-            };
-            reader.readAsDataURL(audioBlob);
-
-            stream.getTracks().forEach(track => track.stop());
-        };
-
-        mediaRecorder.start();
-        $('recordButton').style.display = 'none';
-        $('stopRecordButton').style.display = 'block';
-        $('stopRecordButton').disabled = false;
-        showStatus('Sedang merekam suara...');
-    } catch (e) {
-        showStatus('Gagal mengakses mikrofon: ' + e.message);
-    }
-});
-
-$('stopRecordButton')?.addEventListener('click', () => {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-        $('stopRecordButton').style.display = 'none';
-        $('recordButton').style.display = 'block';
-        $('stopRecordButton').disabled = true;
-    }
-});
-
-$('sttUploadBox')?.addEventListener('click', () => $('audioFileInput').click());
-
-$('audioFileInput')?.addEventListener('change', (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    if (f.size > 25 * 1024 * 1024) return showStatus('Ukuran file audio maksimal 25MB.');
-
-    sttAudioMimeType = f.type || 'audio/mp3';
-    const reader = new FileReader();
-    reader.onload = () => {
-        sttAudioBase64 = reader.result.split(',')[1];
-        $('sttAudioPreview').src = reader.result;
-        $('sttAudioPreview').style.display = 'block';
-        showStatus('File audio siap ditranskrip.');
-    };
-    reader.readAsDataURL(f);
-});
-
-$('generateSttButton')?.addEventListener('click', generateStt);
-
-$('copySttButton')?.addEventListener('click', async () => {
-    await navigator.clipboard.writeText($('sttOutput').value);
-    showStatus('Hasil transkripsi berhasil disalin.');
-});
-
 // 3. Helper Functions
 function showStatus(m) {
     $('status').textContent = m;
@@ -234,42 +157,7 @@ async function generateImagePrompt() {
     }
 }
 
-// 6. Core Logic: Generate Speech to Text (STT)
-async function generateStt() {
-    if (!sttAudioBase64) return showStatus('Silakan rekam suara atau upload file audio terlebih dahulu.');
-
-    const btn = $('generateSttButton');
-    setBusy(true, btn, '▶ Transkrip Audio ke Teks');
-    showStatus('AI sedang mentranskripsi audio...');
-
-    try {
-        const payload = {
-            mode: 'stt',
-            audioBase64: sttAudioBase64,
-            mimeType: sttAudioMimeType,
-            language: $('sttLanguage').value
-        };
-
-        const response = await fetch(BACKEND_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-        if (!response.ok || !data.success) throw Error(data.error || 'Gagal mentranskripsi audio');
-
-        $('sttOutput').value = data.transcription || '';
-        $('copySttButton').style.display = 'block';
-        showStatus('Transkripsi berhasil diselesaikan.');
-    } catch (e) {
-        showStatus('Terjadi kesalahan: ' + e.message);
-    } finally {
-        setBusy(false, btn, '▶ Transkrip Audio ke Teks');
-    }
-}
-
-// 7. Utility: Base64 to MP3 Conversion
+// 6. Utility: Base64 to MP3 Conversion
 function convertBase64PcmToMp3(base64, sampleRate, channels) {
     const b = atob(base64);
     const u = new Uint8Array(b.length);
