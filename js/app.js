@@ -18,7 +18,10 @@ async function callBackend(payload) {
   const text = await response.text();
   let data = {};
   try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text || `HTTP ${response.status}` }; }
-  if (!response.ok || !data.success) throw new Error(data.error || `Server HTTP ${response.status}`);
+  if (!response.ok || !data.success) {
+    if (response.status === 413) throw new Error('Request terlalu besar (413). Pastikan aplikasi memakai app.js versi terbaru dan gambar sudah terkompresi.');
+    throw new Error(data.error || `Server HTTP ${response.status}`);
+  }
   return data;
 }
 
@@ -298,6 +301,8 @@ async function audioBase64ToMp3(base64, mimeType) {
 
 buildVoicePanel();
 
+console.info('AnaStudio Prompt Director v2026.10.08.3 loaded');
+
 // ---------------- AI PROMPT DIRECTOR ----------------
 let directorMode = 'fighter';
 const directorImages = {
@@ -305,33 +310,42 @@ const directorImages = {
   char2: { base64: '', mimeType: '' }
 };
 
-async function compressImageForUpload(file, maxSize = 1600, quality = 0.80) {
+async function compressImageForUpload(file, maxSize = 1200, quality = 0.65) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       try {
-        let { width, height } = img;
-        const scale = Math.min(1, maxSize / Math.max(width, height));
-        width = Math.max(1, Math.round(width * scale));
-        height = Math.max(1, Math.round(height * scale));
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d', { alpha: false });
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        let scale = Math.min(1, maxSize / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+        let width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+        let height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+        let dataUrl = '';
+        // Keep the JSON request safely below common Vercel/serverless body limits.
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d', { alpha: false });
+          if (!ctx) throw new Error('Browser tidak mendukung pemrosesan gambar.');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+          const estimatedBytes = Math.floor((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
+          if (estimatedBytes <= 850 * 1024) break;
+          if (quality > 0.45) quality -= 0.08;
+          else { width = Math.max(480, Math.round(width * 0.78)); height = Math.max(480, Math.round(height * 0.78)); }
+        }
+        const base64 = dataUrl.split(',')[1] || '';
+        const estimatedBytes = Math.floor(base64.length * 0.75);
         URL.revokeObjectURL(url);
-        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+        if (!base64 || estimatedBytes > 1100 * 1024) throw new Error('Gambar masih terlalu besar setelah kompresi.');
+        resolve({ base64, mimeType: 'image/jpeg' });
       } catch (err) {
         URL.revokeObjectURL(url);
         reject(err);
       }
     };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Gagal membaca gambar.'));
-    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gagal membaca gambar.')); };
     img.src = url;
   });
 }
