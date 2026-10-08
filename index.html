@@ -11,12 +11,12 @@
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
   <style>
     *{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#f8faf7,#eaf8f4);font-family:Arial,sans-serif;color:#263548}
-    .container{max-width:720px;margin:28px auto;padding:0 16px}.card{background:#fff;border-radius:38px;overflow:hidden;box-shadow:0 10px 35px #17304d12}
+    .container{width:100%;max-width:1440px;margin:20px auto;padding:0 20px}.card{background:#fff;border-radius:38px;overflow:hidden;box-shadow:0 10px 35px #17304d12}
     .header{background:linear-gradient(135deg,#101a30,#1d293d);color:#fff;padding:30px 32px 25px;display:flex;align-items:center;gap:22px}
     .logo{width:78px;height:78px;border-radius:25px;background:#485267;display:grid;place-items:center;font-size:39px}
     h1{font-size:34px;margin:0 0 6px}.subtitle{margin:0;color:#cbd5e1}
     .tabs{display:flex;gap:8px;padding:16px;background:#f9ffff}.tab{flex:1;border:0;background:#fff;padding:17px 8px;border-radius:18px;font-weight:700;font-size:16px;color:#687587;cursor:pointer}.tab.active{color:#159d91;border:2px solid #25b8aa;background:#f2fffc}
-    .content{padding:30px 32px}.panel{display:none}.panel.active{display:block}
+    .content{padding:30px 40px}.panel{display:none}.panel.active{display:block}
     .notice{background:#eef5ff;border:2px solid #c8ddf8;border-radius:22px;padding:22px;color:#285bb0;font-size:18px;line-height:1.5;margin-bottom:28px}
     label{display:block;font-weight:700;margin:18px 0 9px}select,input,textarea{width:100%;border:2px solid #d8f2ed;border-radius:18px;padding:16px;font-size:17px;background:#fff;color:#263548}textarea{min-height:150px;resize:vertical}
     .upload{border:3px dashed #9de8dc;border-radius:22px;padding:30px;text-align:center;cursor:pointer;margin-bottom:20px}.upload strong{display:block;font-size:20px;margin:10px}.upload small{color:#9aa8b8}.preview{max-width:100%;max-height:260px;display:none;margin:15px auto;border-radius:16px}
@@ -40,7 +40,17 @@
     .director-modal-footer{padding:0 22px 20px}.director-modal-footer .primary{width:100%}
     body.director-modal-open{overflow:hidden}
     @media(max-width:760px){.director-modal{padding:8px}.director-modal-card{width:100%;max-height:96vh;border-radius:20px}.director-modal-body .director-output{min-height:55vh}.director-modal-header{padding:16px}.director-modal-header h2{font-size:18px}}
-  </style>
+  
+    /* FULL WIDTH DESKTOP LAYOUT */
+    @media(min-width:761px){
+      body{padding:20px;}
+      .container{width:100%;max-width:1440px;margin:0 auto;}
+      .card{width:100%;}
+      .content{padding-left:40px;padding-right:40px;}
+      .director-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;}
+      .director-section{width:100%;}
+    }
+</style>
 </head>
 <body>
 <div class="container"><div class="card">
@@ -278,9 +288,10 @@
         <div class="director-modal-footer"><button type="button" class="primary" id="copyDirectorButton" style="background:#263548;margin-top:0">⧉ Copy Hasil</button></div>
       </div>
     </div>
+
     <div id="status" class="status"></div><audio id="audioPlayer" controls></audio><a id="downloadButton" class="download" style="display:none">Download MP3</a>
     <div class="info"><strong>AnaStudio</strong><br>Text-to-Speech, Gambar Jadi Suara, pilihan karakter, pemutar audio, dan ekspor MP3 langsung dari browser.</div>
   </main>
 </div></div>
-<script src="./js/app.js"></script>
+<script src="./js/app.js?v=20261008-3"></script>
 </body></html>
