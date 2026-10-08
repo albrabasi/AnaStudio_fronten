@@ -32,6 +32,7 @@
     <button class="tab" data-tab="sttPanel">🎙 STT</button>
     <button class="tab" data-tab="voicePanel">〽 Voice</button>
     <button class="tab" data-tab="imagePanel">▧ Image</button>
+    <button class="tab" data-tab="promptDirectorPanel">🎬 Prompt Director</button>
   </nav>
   <main class="content">
     <section id="ttsPanel" class="panel active">
@@ -106,6 +107,150 @@
       <label for="imageFileName">Nama File Audio</label><input id="imageFileName" placeholder="AnaImage_01">
       <button class="primary" id="generateImageButton">▶ Generate Prompt Video Flow</button><button class="primary" id="copyPromptButton" style="display:none;background:#263548">⧉ Copy Prompt</button><button class="primary" id="generateAudioFromPromptButton" style="display:none;background:linear-gradient(90deg,#2b6cb0,#3182ce);margin-top:15px;">▶ Buat Suara Narasi dari Prompt</button><label for="promptOutput">Hasil Prompt Video</label><textarea id="promptOutput" readonly placeholder="Prompt video akan muncul di sini..."></textarea>
     </section>
+
+    <section id="promptDirectorPanel" class="panel">
+      <div class="notice"><strong>🎬 AI PROMPT DIRECTOR</strong><br>Buat prompt video AI untuk adegan pertarungan maupun adegan umum/custom. Antarmuka Bahasa Indonesia, dengan pilihan bahasa output Indonesia atau English.</div>
+      <div class="mode-tabs">
+        <button type="button" class="mode-tab active" data-mode="fighter">⚔️ FIGHTER</button>
+        <button type="button" class="mode-tab" data-mode="custom">🎬 UMUM / CUSTOM</button>
+      </div>
+
+      <div id="fighterDirectorForm" class="director-form">
+        <div class="director-grid">
+          <div class="director-col">
+            <div class="director-section">
+              <h3>👤 KARAKTER 1 — PROTAGONIS</h3>
+              <div class="ref-row">
+                <div class="upload compact" id="fighterChar1Box"><div>🖼️</div><strong>Upload Referensi</strong><small>JPG, PNG, WEBP · maks. 10MB</small><input id="fighterChar1Input" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
+                <button type="button" class="analyze-btn" id="analyzeChar1Btn">✨ AI Analisis Gambar</button>
+              </div>
+              <img id="fighterChar1Preview" class="preview small-preview" alt="Referensi karakter 1">
+              <label for="char1Name">Nama (Referensi)</label><input id="char1Name" placeholder="Contoh: Lupit">
+              <label for="char1Gender">Gender & Usia</label><input id="char1Gender" placeholder="Pria, 20 tahun">
+              <label for="char1Appearance">Penampilan</label><textarea id="char1Appearance" placeholder="Wajah, rambut, tubuh, ciri fisik..."></textarea>
+              <label for="char1Clothing">Pakaian <span class="critical">CRITICAL FOR CONTINUITY</span></label><textarea id="char1Clothing" placeholder="Pakaian, warna, bahan, aksesori..."></textarea>
+              <label for="char1Style">Gaya Bertarung</label>
+              <select id="char1Style"><option>Mixed Martial Arts (MMA)</option><option>Pencak Silat</option><option>Kung Fu</option><option>Muay Thai</option><option>Boxing</option><option>Judo / Grappling</option><option>Street Brawler</option></select>
+              <label class="checkline"><input id="char1Lock" type="checkbox" checked> Char Ref Lock <b>ON</b></label>
+            </div>
+
+            <div class="director-section">
+              <h3>👤 KARAKTER 2 — ANTAGONIS</h3>
+              <div class="ref-row">
+                <div class="upload compact" id="fighterChar2Box"><div>🖼️</div><strong>Upload Referensi</strong><small>JPG, PNG, WEBP · maks. 10MB</small><input id="fighterChar2Input" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
+                <button type="button" class="analyze-btn" id="analyzeChar2Btn">✨ AI Analisis Gambar</button>
+              </div>
+              <img id="fighterChar2Preview" class="preview small-preview" alt="Referensi karakter 2">
+              <label for="char2Name">Nama (Referensi)</label><input id="char2Name" placeholder="Contoh: Durmuka">
+              <label for="char2Gender">Gender & Usia</label><input id="char2Gender" placeholder="Pria, 30 tahun">
+              <label for="char2Appearance">Penampilan</label><textarea id="char2Appearance" placeholder="Wajah, rambut, tubuh, ciri fisik..."></textarea>
+              <label for="char2Clothing">Pakaian <span class="critical">CRITICAL FOR CONTINUITY</span></label><textarea id="char2Clothing" placeholder="Pakaian, warna, bahan, aksesori..."></textarea>
+              <label for="char2Style">Gaya Bertarung</label>
+              <select id="char2Style"><option>Street Brawler</option><option>Mixed Martial Arts (MMA)</option><option>Pencak Silat</option><option>Kung Fu</option><option>Muay Thai</option><option>Boxing</option><option>Judo / Grappling</option></select>
+              <label class="checkline"><input id="char2Lock" type="checkbox" checked> Char Ref Lock <b>ON</b></label>
+            </div>
+          </div>
+
+          <div class="director-col">
+            <div class="director-section">
+              <h3>🌆 LINGKUNGAN & SINEMATOGRAFI</h3>
+              <label for="fightLocation">Arena / Lokasi</label>
+              <select id="fightLocation"><option>Alley</option><option>Rooftop</option><option>Warehouse</option><option>Street</option><option>Forest</option><option>Dojo</option><option>Subway Station</option></select>
+              <label for="fightAtmosphere">Cuaca / Atmosfer</label>
+              <select id="fightAtmosphere"><option>Night (High Contrast)</option><option>Rain (Wet, Reflective)</option><option>Fog (Atmospheric)</option><option>Neon Cyberpunk</option><option>Sunny / Daylight</option><option>Overcast / Moody</option><option>Indoor Lighting</option></select>
+              <label for="fightDetails">Detail Lokasi <span class="critical">REF LOCK</span></label>
+              <textarea id="fightDetails" placeholder="Contoh: lantai beton basah, genangan air, uap, puing..."></textarea>
+              <label for="fightRatio">Aspek Rasio</label>
+              <select id="fightRatio"><option value="16:9">16:9 — Cinematic / Widescreen</option><option value="9:16" selected>9:16 — Vertical / Shorts</option><option value="21:9">21:9 — Ultra-wide</option><option value="1:1">1:1 — Square</option></select>
+              <label for="fightCinematic">Gaya Sinematik</label>
+              <select id="fightCinematic"><option>Photorealistic Cinematic</option><option>Gritty Realism</option><option>Hollywood Action</option><option>Dark Cinematic</option><option>Anime Live Action</option></select>
+            </div>
+
+            <div class="director-section">
+              <h3>🥊 PENGARAHAN AKSI</h3>
+              <label for="fightDuration">Durasi</label>
+              <select id="fightDuration"><option value="10">10 Detik</option><option value="15">15 Detik</option><option value="20">20 Detik</option><option value="30">30 Detik</option></select>
+              <label for="fightTempo">Tempo Pertarungan</label>
+              <select id="fightTempo"><option>Fast Cinematic</option><option>Moderate (Strategic)</option><option>Very Fast (Blurry)</option><option>Brutal (Heavy Impacts)</option><option>Highly Choreographed</option></select>
+              <label for="fightIntensity">Intensitas</label>
+              <select id="fightIntensity"><option>Intense</option><option>Light / Sparring</option><option>Moderate</option><option>Extreme (High Stakes)</option></select>
+              <label for="fightCamera">Gaya Kamera</label>
+              <select id="fightCamera"><option>Cinematic Tracking</option><option>Dynamic Action</option><option>Handheld (Shaky)</option><option>Mixed Angles</option><option>Low Angle Focus</option></select>
+              <label for="fightEnding">Gaya Akhir</label>
+              <select id="fightEnding"><option>Face-off (Staredown)</option><option>Knockdown</option><option>Separation / Distance</option><option>Hero Pose</option><option>Final devastating attack</option></select>
+            </div>
+
+            <div class="director-section">
+              <h3>💥 KOREOGRAFI PERTARUNGAN</h3>
+              <label for="fightCombination">Kombinasi Gaya</label><select id="fightCombination"><option>Single Style</option><option>Mixed / Hybrid Style</option><option>User Defined</option></select>
+              <label for="fightAttacks">Preferensi Gerakan</label><input id="fightAttacks" placeholder="Punch, kick, elbow, knee, sweep, counter, grappling...">
+              <label for="fightMovement">Pergerakan</label><select id="fightMovement"><option>Close Combat</option><option>Mid Range</option><option>Long Range</option><option>Defensive Retreat</option><option>Circular Footwork</option><option>Environmental Movement</option></select>
+              <label for="fightImpact">Level Benturan</label><select id="fightImpact"><option>Realistic</option><option>Hard Impact</option><option>Heavy Impact</option><option>Extreme Cinematic Impact</option></select>
+              <label for="fightLogic">Logika Koreografi</label><select id="fightLogic"><option>Tactical</option><option>Reactive</option><option>Counter-Based</option><option>Continuous Combo</option><option>Improvised</option><option>Highly Choreographed</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="customDirectorForm" class="director-form" style="display:none">
+        <div class="director-grid">
+          <div class="director-col">
+            <div class="director-section">
+              <h3>🎬 ADEGAN UMUM / CUSTOM</h3>
+              <label for="customSceneType">Jenis Adegan</label>
+              <select id="customSceneType"><option>Influencer</option><option>Promosi Produk</option><option>Iklan</option><option>Film / Drama</option><option>Storytelling</option><option>Tutorial</option><option>Review Produk</option><option>Food</option><option>Travel</option><option>Comedy</option><option>Romance</option><option>Action</option><option>Cinematic</option><option>Custom</option></select>
+              <label for="customDescription">Deskripsi Adegan</label>
+              <textarea id="customDescription" style="min-height:190px" placeholder="Jelaskan adegan yang ingin dibuat. Contoh: Seorang influencer sedang mempromosikan produk herbal di depan kamera..."></textarea>
+              <label for="customSubject">Subjek / Karakter</label><textarea id="customSubject" placeholder="Nama, usia, penampilan, pakaian, ekspresi, gerakan..."></textarea>
+              <label for="customProduct">Produk / Objek (opsional)</label><textarea id="customProduct" placeholder="Nama produk, bentuk, warna, label, cara ditampilkan..."></textarea>
+              <label class="checkline"><input id="customSubjectLock" type="checkbox" checked> Subject Ref Lock <b>ON</b></label>
+            </div>
+          </div>
+          <div class="director-col">
+            <div class="director-section">
+              <h3>🌆 LINGKUNGAN</h3>
+              <label for="customLocation">Lokasi</label><input id="customLocation" placeholder="Studio, rumah, pasar, jalan desa, hutan...">
+              <label for="customTime">Waktu / Cuaca</label><input id="customTime" placeholder="Pagi cerah, sore mendung, malam hujan...">
+              <label for="customBackground">Background & Properti</label><textarea id="customBackground" placeholder="Elemen latar, properti, kondisi tempat..."></textarea>
+              <label for="customLighting">Lighting & Atmosfer</label><input id="customLighting" placeholder="Soft daylight, warm indoor, dramatic rim light...">
+              <label for="customCamera">Gaya Kamera</label><select id="customCamera"><option>Cinematic Tracking</option><option>Dynamic Action</option><option>Handheld</option><option>Static / Locked Camera</option><option>Mixed Angles</option><option>Close-up Focus</option></select>
+              <label for="customCinematic">Gaya Visual</label><select id="customCinematic"><option>Photorealistic Cinematic</option><option>Gritty Realism</option><option>Hollywood Commercial</option><option>Documentary Realism</option><option>Social Media / UGC</option><option>Anime Live Action</option></select>
+            </div>
+            <div class="director-section">
+              <h3>⚙️ OUTPUT VIDEO</h3>
+              <label for="customDuration">Durasi</label><select id="customDuration"><option value="10">10 Detik</option><option value="15">15 Detik</option><option value="20">20 Detik</option><option value="30">30 Detik</option></select>
+              <label for="customRatio">Aspek Rasio</label><select id="customRatio"><option value="16:9">16:9 — Cinematic / Widescreen</option><option value="9:16" selected>9:16 — Vertical / Shorts</option><option value="21:9">21:9 — Ultra-wide</option><option value="1:1">1:1 — Square</option></select>
+              <label for="customMood">Mood / Pacing</label><input id="customMood" placeholder="Enerjik, natural, elegan, cepat, santai...">
+              <label for="customInstructions">Instruksi Khusus</label><textarea id="customInstructions" placeholder="Aturan tambahan untuk AI..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="director-output-settings">
+        <label for="directorLanguage">🌐 Bahasa Output Prompt</label>
+        <select id="directorLanguage"><option value="Indonesia">Bahasa Indonesia</option><option value="English">English</option></select>
+      </div>
+      <div class="director-actions">
+        <button type="button" class="primary" id="resetDirectorButton" style="background:#718096">↺ Reset</button>
+        <button type="button" class="primary" id="generateDirectorButton">✨ Generate Prompt</button>
+      </div>
+
+      <div id="directorResult" style="display:none">
+        <div class="result-tabs">
+          <button type="button" class="result-tab active" data-result="final">FINAL PROMPT</button>
+          <button type="button" class="result-tab" data-result="timeline">TIMELINE</button>
+          <button type="button" class="result-tab" data-result="summary">SUMMARY</button>
+          <button type="button" class="result-tab" data-result="json">JSON</button>
+        </div>
+        <textarea id="directorFinalOutput" class="director-output"></textarea>
+        <textarea id="directorTimelineOutput" class="director-output" style="display:none"></textarea>
+        <textarea id="directorSummaryOutput" class="director-output" style="display:none"></textarea>
+        <textarea id="directorJsonOutput" class="director-output" style="display:none;font-family:monospace"></textarea>
+        <button type="button" class="primary" id="copyDirectorButton" style="background:#263548">⧉ Copy Hasil</button>
+      </div>
+    </section>
+
     <div id="status" class="status"></div><audio id="audioPlayer" controls></audio><a id="downloadButton" class="download" style="display:none">Download MP3</a>
     <div class="info"><strong>AnaStudio</strong><br>Text-to-Speech, Gambar Jadi Suara, pilihan karakter, pemutar audio, dan ekspor MP3 langsung dari browser.</div>
   </main>
