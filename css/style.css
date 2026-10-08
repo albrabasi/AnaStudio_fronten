@@ -222,3 +222,10 @@ audio {
 .director-modal-close{width:42px;height:42px;padding:0;border-radius:50%;background:#ffffff20;color:#fff;border:1px solid #ffffff40;font-size:30px;line-height:36px;margin:0;cursor:pointer}
 .director-modal-card .result-tabs{padding:14px 18px 0;margin:0}.director-modal-card .result-tab{background:#f7fbfb}.director-modal-card .result-tab.active{background:#159d91;color:#fff}.director-modal-body{padding:18px 22px;overflow:auto}.director-modal-body .director-output{min-height:430px;width:100%;margin:0;border-radius:16px}.director-modal-footer{padding:0 22px 20px}.director-modal-footer .primary{width:100%;margin-top:0}body.director-modal-open{overflow:hidden}
 @media(max-width:760px){.director-modal{padding:8px}.director-modal-card{width:100%;max-height:96vh;border-radius:20px}.director-modal-body .director-output{min-height:55vh}.director-modal-header{padding:16px}.director-modal-header h2{font-size:18px}}
+
+
+/* Full width desktop */
+@media (min-width: 761px) {
+  .container { width:100%; max-width:1440px; }
+  .card { width:100%; }
+}
