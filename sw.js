@@ -64,7 +64,7 @@ self.addEventListener("fetch", (event) => {
         }).catch((error) => {
           console.warn("Gagal menyimpan cache:", error);
         });
-
+  
         return response;
       })
       .catch(() => {
