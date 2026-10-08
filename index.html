@@ -23,6 +23,23 @@
     button.primary,.download{display:block;width:100%;border:0;border-radius:20px;padding:18px;background:linear-gradient(90deg,#16b6a5,#0799bb);color:#fff;font-size:20px;font-weight:700;cursor:pointer;text-align:center;text-decoration:none;margin-top:25px}
     button:disabled{opacity:.6}.status{margin-top:18px;text-align:center;font-weight:700;line-height:1.5}audio{width:100%;margin-top:18px;display:none}.count{text-align:right;color:#8491a0;margin-top:6px}.info{margin-top:25px;padding:18px;background:#f5fafb;border-radius:18px;color:#657487;font-size:14px}
     @media(max-width:520px){.container{margin:0 auto;padding:0}.card{border-radius:0}.header{padding:25px 20px}.logo{width:64px;height:64px;font-size:30px}h1{font-size:27px}.content{padding:25px 20px}.tab{font-size:14px;padding:15px 4px}}
+  
+    .director-mode-marker{display:inline-block;margin:-8px 0 16px;padding:8px 12px;border-radius:12px;background:#eefaf8;color:#159d91;font-size:13px;font-weight:800;letter-spacing:.3px}
+    .director-preview-wrap{position:relative;display:none;width:max-content;max-width:100%;margin:12px auto}
+    .director-preview-wrap:has(.small-preview[style*="display: block"]){display:block}
+    .director-preview-wrap .small-preview{margin:0;display:block}
+    .preview-clear{position:absolute;top:-9px;right:-9px;width:34px;height:34px;padding:0!important;margin:0!important;border:2px solid #fff!important;border-radius:50%!important;background:#e53e3e!important;color:#fff!important;font-size:24px!important;line-height:28px!important;font-weight:800!important;box-shadow:0 3px 10px #0003;cursor:pointer;z-index:4}
+    .director-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.72);backdrop-filter:blur(5px);z-index:10000}
+    .director-modal.open{display:flex}
+    .director-modal-card{width:min(1000px,96vw);max-height:92vh;display:flex;flex-direction:column;background:#fff;border-radius:26px;box-shadow:0 24px 80px #0005;overflow:hidden}
+    .director-modal-header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:20px 24px;background:linear-gradient(135deg,#101a30,#1d293d);color:#fff}
+    .director-modal-header h2{margin:0 0 5px;font-size:22px}.director-modal-header span{font-size:12px;color:#cbd5e1;font-weight:800}
+    .director-modal-close{width:42px;height:42px;padding:0;border-radius:50%;background:#ffffff20;color:#fff;border:1px solid #ffffff40;font-size:30px;line-height:36px;margin:0;cursor:pointer}
+    .director-modal-card .result-tabs{padding:14px 18px 0;margin:0}.director-modal-card .result-tab{background:#f7fbfb}.director-modal-card .result-tab.active{background:#159d91;color:#fff}
+    .director-modal-body{padding:18px 22px;overflow:auto}.director-modal-body .director-output{min-height:430px;width:100%;margin:0;border-radius:16px}
+    .director-modal-footer{padding:0 22px 20px}.director-modal-footer .primary{width:100%}
+    body.director-modal-open{overflow:hidden}
+    @media(max-width:760px){.director-modal{padding:8px}.director-modal-card{width:100%;max-height:96vh;border-radius:20px}.director-modal-body .director-output{min-height:55vh}.director-modal-header{padding:16px}.director-modal-header h2{font-size:18px}}
   </style>
 </head>
 <body>
@@ -126,7 +143,7 @@
                 <div class="upload compact" id="fighterChar1Box"><div>🖼️</div><strong>Upload Referensi</strong><small>JPG, PNG, WEBP · maks. 10MB</small><input id="fighterChar1Input" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
                 <button type="button" class="analyze-btn" id="analyzeChar1Btn">✨ AI Analisis Gambar</button>
               </div>
-              <img id="fighterChar1Preview" class="preview small-preview" alt="Referensi karakter 1">
+              <div class="director-preview-wrap" id="fighterChar1PreviewWrap"><img id="fighterChar1Preview" class="preview small-preview" alt="Referensi karakter 1"><button type="button" class="preview-clear" id="clearChar1Btn" aria-label="Hapus referensi karakter 1">×</button></div>
               <label for="char1Name">Nama (Referensi)</label><input id="char1Name" placeholder="Contoh: Lupit">
               <label for="char1Gender">Gender & Usia</label><input id="char1Gender" placeholder="Pria, 20 tahun">
               <label for="char1Appearance">Penampilan</label><textarea id="char1Appearance" placeholder="Wajah, rambut, tubuh, ciri fisik..."></textarea>
@@ -142,7 +159,7 @@
                 <div class="upload compact" id="fighterChar2Box"><div>🖼️</div><strong>Upload Referensi</strong><small>JPG, PNG, WEBP · maks. 10MB</small><input id="fighterChar2Input" type="file" accept="image/jpeg,image/png,image/webp" hidden></div>
                 <button type="button" class="analyze-btn" id="analyzeChar2Btn">✨ AI Analisis Gambar</button>
               </div>
-              <img id="fighterChar2Preview" class="preview small-preview" alt="Referensi karakter 2">
+              <div class="director-preview-wrap" id="fighterChar2PreviewWrap"><img id="fighterChar2Preview" class="preview small-preview" alt="Referensi karakter 2"><button type="button" class="preview-clear" id="clearChar2Btn" aria-label="Hapus referensi karakter 2">×</button></div>
               <label for="char2Name">Nama (Referensi)</label><input id="char2Name" placeholder="Contoh: Durmuka">
               <label for="char2Gender">Gender & Usia</label><input id="char2Gender" placeholder="Pria, 30 tahun">
               <label for="char2Appearance">Penampilan</label><textarea id="char2Appearance" placeholder="Wajah, rambut, tubuh, ciri fisik..."></textarea>
@@ -237,21 +254,30 @@
         <button type="button" class="primary" id="resetDirectorButton" style="background:#718096">↺ Reset</button>
         <button type="button" class="primary" id="generateDirectorButton">✨ Generate Prompt</button>
       </div>
+    </section>
 
-      <div id="directorResult" style="display:none">
+
+    <div id="directorResultModal" class="director-modal" aria-hidden="true">
+      <div class="director-modal-card" role="dialog" aria-modal="true" aria-labelledby="directorModalTitle">
+        <div class="director-modal-header">
+          <div><h2 id="directorModalTitle">🎬 Hasil AI Prompt Director</h2><span id="directorModalMode">FINAL OUTPUT</span></div>
+          <button type="button" class="director-modal-close" id="closeDirectorModal" aria-label="Tutup">×</button>
+        </div>
         <div class="result-tabs">
           <button type="button" class="result-tab active" data-result="final">FINAL PROMPT</button>
           <button type="button" class="result-tab" data-result="timeline">TIMELINE</button>
           <button type="button" class="result-tab" data-result="summary">SUMMARY</button>
           <button type="button" class="result-tab" data-result="json">JSON</button>
         </div>
-        <textarea id="directorFinalOutput" class="director-output"></textarea>
-        <textarea id="directorTimelineOutput" class="director-output" style="display:none"></textarea>
-        <textarea id="directorSummaryOutput" class="director-output" style="display:none"></textarea>
-        <textarea id="directorJsonOutput" class="director-output" style="display:none;font-family:monospace"></textarea>
-        <button type="button" class="primary" id="copyDirectorButton" style="background:#263548">⧉ Copy Hasil</button>
+        <div class="director-modal-body">
+          <textarea id="directorFinalOutput" class="director-output" placeholder="FINAL PROMPT"></textarea>
+          <textarea id="directorTimelineOutput" class="director-output" style="display:none" placeholder="TIMELINE"></textarea>
+          <textarea id="directorSummaryOutput" class="director-output" style="display:none" placeholder="SUMMARY"></textarea>
+          <textarea id="directorJsonOutput" class="director-output" style="display:none;font-family:monospace" placeholder="JSON"></textarea>
+        </div>
+        <div class="director-modal-footer"><button type="button" class="primary" id="copyDirectorButton" style="background:#263548;margin-top:0">⧉ Copy Hasil</button></div>
       </div>
-    </section>
+    </div>
 
     <div id="status" class="status"></div><audio id="audioPlayer" controls></audio><a id="downloadButton" class="download" style="display:none">Download MP3</a>
     <div class="info"><strong>AnaStudio</strong><br>Text-to-Speech, Gambar Jadi Suara, pilihan karakter, pemutar audio, dan ekspor MP3 langsung dari browser.</div>
