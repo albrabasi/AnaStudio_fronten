@@ -505,7 +505,7 @@ async function analyzeCustomImage() {
   const original = btn.dataset.originalText || btn.textContent;
   btn.dataset.originalText = original;
   setBusy(btn, true, original);
-  showStatus('AI sedang menganalisis gambar referensi...');
+  showStatus('AI sedang menganalisis gambar referensi subjek...');
   try {
     const data = await callBackend({
       mode: 'analyze_custom_image',
@@ -513,17 +513,47 @@ async function analyzeCustomImage() {
       mimeType: img.mimeType
     });
     const r = data.customAnalysis || {};
-    if ($('customDescription') && r.description) $('customDescription').value = r.description;
-    if ($('customSubject') && r.subject) $('customSubject').value = r.subject;
-    if ($('customProduct') && r.product) $('customProduct').value = r.product;
-    if ($('customLocation') && r.location) $('customLocation').value = r.location;
-    showStatus('Analisis gambar kustom selesai!');
+    if ($('customSubject')) {
+      $('customSubject').value = r.subject || '';
+      $('customSubject').dispatchEvent(new Event('input'));
+    }
+    showStatus('Analisis gambar selesai! Subjek / Karakter berhasil diisi.');
   } catch (e) {
     showStatus('Gagal menganalisis gambar: ' + e.message);
   } finally {
     setBusy(btn, false, original);
   }
 }
+
+// Custom Scene AI Suggestion Handler
+$('customSubject')?.addEventListener('input', () => {
+  const val = $('customSubject').value.trim();
+  const btn = $('generateCustomSceneBtn');
+  if (btn) btn.disabled = !val;
+});
+
+$('generateCustomSceneBtn')?.addEventListener('click', async () => {
+  const subject = $('customSubject')?.value.trim();
+  if (!subject) return showStatus('Subjek / Karakter belum diisi.');
+  const btn = $('generateCustomSceneBtn');
+  const original = btn.dataset.originalText || btn.textContent;
+  btn.dataset.originalText = original;
+  setBusy(btn, true, original);
+  showStatus('AI sedang membuat saran deskripsi adegan...');
+  try {
+    const data = await callBackend({
+      mode: 'generate_custom_scene',
+      sceneType: $('customSceneType')?.value || 'Influencer',
+      subject
+    });
+    if ($('customDescription')) $('customDescription').value = data.description || '';
+    showStatus('Saran deskripsi adegan berhasil dibuat!');
+  } catch (e) {
+    showStatus('Gagal membuat saran adegan: ' + e.message);
+  } finally {
+    setBusy(btn, false, original);
+  }
+});
 
 function updateDirectorModeUI() {
   document.querySelectorAll('.mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === directorMode));
@@ -720,6 +750,8 @@ $('resetDirectorButton')?.addEventListener('click', () => {
   ['fighterChar1Input','fighterChar2Input','customImageInput'].forEach(id => { if ($(id)) $(id).value = ''; });
   ['fighterChar1Preview','fighterChar2Preview','customImagePreview'].forEach(id => { if ($(id)) { $(id).src=''; $(id).style.display='none'; }});
   ['char1Lock','char2Lock','customSubjectLock'].forEach(id => { if ($(id)) $(id).checked = true; });
+  const genBtn = $('generateCustomSceneBtn');
+  if (genBtn) genBtn.disabled = true;
   if ($('directorLanguage')) $('directorLanguage').value = 'Indonesia';
   directorMode = 'fighter';
   updateDirectorModeUI();
