@@ -305,32 +305,126 @@ const directorImages = {
   char2: { base64: '', mimeType: '' }
 };
 
+async function compressImageForUpload(file, maxSize = 1600, quality = 0.80) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        let { width, height } = img;
+        const scale = Math.min(1, maxSize / Math.max(width, height));
+        width = Math.max(1, Math.round(width * scale));
+        height = Math.max(1, Math.round(height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d', { alpha: false });
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        URL.revokeObjectURL(url);
+        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+      } catch (err) {
+        URL.revokeObjectURL(url);
+        reject(err);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Gagal membaca gambar.'));
+    };
+    img.src = url;
+  });
+}
+
+function ensureDirectorPreviewClearButton(slot) {
+  const preview = $(`fighterChar${slot}Preview`);
+  if (!preview) return null;
+  let wrap = preview.parentElement;
+  if (!wrap?.classList.contains('director-preview-wrap')) {
+    wrap = document.createElement('div');
+    wrap.className = 'director-preview-wrap';
+    preview.parentNode.insertBefore(wrap, preview);
+    wrap.appendChild(preview);
+  }
+  let clear = $(`clearChar${slot}Btn`);
+  if (!clear) {
+    clear = document.createElement('button');
+    clear.type = 'button';
+    clear.id = `clearChar${slot}Btn`;
+    clear.className = 'preview-clear';
+    clear.setAttribute('aria-label', `Hapus referensi karakter ${slot}`);
+    clear.textContent = '×';
+    wrap.appendChild(clear);
+  }
+  clear.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    clearDirectorImage(slot);
+  };
+  return clear;
+}
+
+function clearDirectorImage(slot) {
+  directorImages[`char${slot}`] = { base64: '', mimeType: '' };
+  const input = $(`fighterChar${slot}Input`);
+  const preview = $(`fighterChar${slot}Preview`);
+  if (input) input.value = '';
+  if (preview) {
+    preview.src = '';
+    preview.style.display = 'none';
+  }
+  const fields = [`char${slot}Name`, `char${slot}Gender`, `char${slot}Appearance`, `char${slot}Clothing`];
+  fields.forEach(id => { if ($(id)) $(id).value = ''; });
+  showStatus(`Referensi karakter ${slot} dihapus. Silakan pilih gambar baru.`);
+}
+
 function setupDirectorImage(slot) {
   const input = $(`fighterChar${slot}Input`);
   const box = $(`fighterChar${slot}Box`);
   const preview = $(`fighterChar${slot}Preview`);
-  if (!input || !box) return;
-  box.addEventListener('click', () => input.click());
-  input.addEventListener('change', async e => {
+  if (!input || !box || !preview) return;
+  ensureDirectorPreviewClearButton(slot);
+
+  box.onclick = (event) => {
+    if (event.target === input) return;
+    input.click();
+  };
+
+  input.onchange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) return showStatus('File referensi harus berupa gambar.');
     if (file.size > 10 * 1024 * 1024) return showStatus('Ukuran gambar karakter maksimal 10MB.');
-    directorImages[`char${slot}`].base64 = await readFileAsBase64(file);
-    directorImages[`char${slot}`].mimeType = file.type || 'image/jpeg';
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = 'block';
-    showStatus(`Referensi karakter ${slot} siap.`);
-  });
+    try {
+      showStatus(`Menyiapkan referensi karakter ${slot}...`);
+      const compressed = await compressImageForUpload(file);
+      directorImages[`char${slot}`] = compressed;
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+      showStatus(`Referensi karakter ${slot} siap. Gambar sudah dikompres untuk server.`);
+    } catch (err) {
+      input.value = '';
+      showStatus('Gagal menyiapkan gambar: ' + err.message);
+    }
+  };
 }
-setupDirectorImage(1); setupDirectorImage(2);
+
+function updateDirectorModeUI() {
+  document.querySelectorAll('.mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === directorMode));
+  if ($('fighterDirectorForm')) $('fighterDirectorForm').style.display = directorMode === 'fighter' ? 'block' : 'none';
+  if ($('customDirectorForm')) $('customDirectorForm').style.display = directorMode === 'custom' ? 'block' : 'none';
+  const marker = $('directorModeMarker');
+  if (marker) marker.textContent = `MODE AKTIF: ${directorMode === 'fighter' ? '⚔️ FIGHTER' : '🎬 UMUM / CUSTOM'}`;
+}
+
+setupDirectorImage(1);
+setupDirectorImage(2);
+updateDirectorModeUI();
 
 document.querySelectorAll('.mode-tab').forEach(btn => btn.addEventListener('click', () => {
-  document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  directorMode = btn.dataset.mode;
-  $('fighterDirectorForm').style.display = directorMode === 'fighter' ? 'block' : 'none';
-  $('customDirectorForm').style.display = directorMode === 'custom' ? 'block' : 'none';
-  $('directorResult').style.display = 'none';
+  directorMode = btn.dataset.mode || 'fighter';
+  updateDirectorModeUI();
+  closeDirectorModal();
   showStatus('');
 }));
 
@@ -338,7 +432,9 @@ async function analyzeDirectorCharacter(slot) {
   const img = directorImages[`char${slot}`];
   if (!img.base64) return showStatus(`Upload referensi karakter ${slot} terlebih dahulu.`);
   const btn = $(`analyzeChar${slot}Btn`);
-  const original = btn.textContent;
+  if (!btn) return showStatus(`Tombol analisis karakter ${slot} tidak ditemukan.`);
+  const original = btn.dataset.originalText || btn.textContent;
+  btn.dataset.originalText = original;
   setBusy(btn, true, original);
   showStatus(`AI sedang menganalisis karakter ${slot}...`);
   try {
@@ -348,10 +444,10 @@ async function analyzeDirectorCharacter(slot) {
       mimeType: img.mimeType
     });
     const r = data.character || {};
-    $(`char${slot}Name`).value = r.name || '';
-    $(`char${slot}Gender`).value = r.gender_age || '';
-    $(`char${slot}Appearance`).value = r.appearance || '';
-    $(`char${slot}Clothing`).value = r.clothing || '';
+    if ($(`char${slot}Name`)) $('char' + slot + 'Name').value = r.name || '';
+    if ($(`char${slot}Gender`)) $('char' + slot + 'Gender').value = r.gender_age || '';
+    if ($(`char${slot}Appearance`)) $('char' + slot + 'Appearance').value = r.appearance || '';
+    if ($(`char${slot}Clothing`)) $('char' + slot + 'Clothing').value = r.clothing || '';
     showStatus(`Analisis karakter ${slot} selesai. Silakan koreksi jika diperlukan.`);
   } catch (e) {
     showStatus('Gagal menganalisis karakter: ' + e.message);
@@ -359,16 +455,18 @@ async function analyzeDirectorCharacter(slot) {
     setBusy(btn, false, original);
   }
 }
-$('analyzeChar1Btn')?.addEventListener('click', () => analyzeDirectorCharacter(1));
-$('analyzeChar2Btn')?.addEventListener('click', () => analyzeDirectorCharacter(2));
+
+// Explicit bindings untuk memastikan kedua tombol aktif.
+const analyze1 = $('analyzeChar1Btn');
+const analyze2 = $('analyzeChar2Btn');
+if (analyze1) analyze1.onclick = (e) => { e.preventDefault(); analyzeDirectorCharacter(1); };
+if (analyze2) analyze2.onclick = (e) => { e.preventDefault(); analyzeDirectorCharacter(2); };
 
 function directorPayload() {
   const language = $('directorLanguage')?.value || 'Indonesia';
   if (directorMode === 'fighter') {
     return {
-      mode: 'prompt_director',
-      directorType: 'fighter',
-      language,
+      mode: 'prompt_director', directorType: 'fighter', language,
       character1: {
         name: $('char1Name').value, genderAge: $('char1Gender').value,
         appearance: $('char1Appearance').value, clothing: $('char1Clothing').value,
@@ -397,9 +495,7 @@ function directorPayload() {
     };
   }
   return {
-    mode: 'prompt_director',
-    directorType: 'custom',
-    language,
+    mode: 'prompt_director', directorType: 'custom', language,
     scene: {
       type: $('customSceneType').value, description: $('customDescription').value,
       subject: $('customSubject').value, product: $('customProduct').value,
@@ -417,14 +513,35 @@ function directorPayload() {
   };
 }
 
+function openDirectorModal() {
+  const modal = $('directorResultModal');
+  if (!modal) return;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('director-modal-open');
+}
+function closeDirectorModal() {
+  const modal = $('directorResultModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('director-modal-open');
+}
+function showDirectorModalLoading() {
+  openDirectorModal();
+  if ($('directorFinalOutput')) $('directorFinalOutput').value = '⏳ AI Prompt Director sedang menyusun hasil...';
+  if ($('directorTimelineOutput')) $('directorTimelineOutput').value = '';
+  if ($('directorSummaryOutput')) $('directorSummaryOutput').value = '';
+  if ($('directorJsonOutput')) $('directorJsonOutput').value = '';
+}
+
 function displayDirectorResult(data) {
-  $('directorResult').style.display = 'block';
+  openDirectorModal();
   $('directorFinalOutput').value = data.finalPrompt || '';
   $('directorTimelineOutput').value = data.timeline || '';
   $('directorSummaryOutput').value = data.summary || '';
   $('directorJsonOutput').value = JSON.stringify(data.json || data.input || {}, null, 2);
-  document.querySelectorAll('.result-tab').forEach(b => b.classList.remove('active'));
-  document.querySelector('.result-tab[data-result="final"]')?.classList.add('active');
+  document.querySelectorAll('.result-tab').forEach(b => b.classList.toggle('active', b.dataset.result === 'final'));
   document.querySelectorAll('.director-output').forEach(el => el.style.display = 'none');
   $('directorFinalOutput').style.display = 'block';
 }
@@ -434,40 +551,57 @@ $('generateDirectorButton')?.addEventListener('click', async () => {
   if (directorMode === 'custom' && !payload.scene.description.trim()) return showStatus('Deskripsi adegan belum diisi.');
   const btn = $('generateDirectorButton');
   setBusy(btn, true, '✨ Generate Prompt');
+  showDirectorModalLoading();
   showStatus('AI Prompt Director sedang menyusun adegan, timeline, dan prompt...');
   try {
     const data = await callBackend(payload);
     displayDirectorResult(data);
     showStatus('Prompt Director berhasil dibuat.');
   } catch (e) {
-    showStatus('Terjadi kesalahan: ' + e.message);
+    const message = e.message || 'Kesalahan tidak diketahui.';
+    if ($('directorFinalOutput')) $('directorFinalOutput').value = `❌ Gagal membuat prompt.\n\n${message}`;
+    showStatus('Terjadi kesalahan: ' + message);
   } finally {
     setBusy(btn, false, '✨ Generate Prompt');
   }
 });
 
 document.querySelectorAll('.result-tab').forEach(btn => btn.addEventListener('click', () => {
-  document.querySelectorAll('.result-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  document.querySelectorAll('.result-tab').forEach(b => b.classList.toggle('active', b === btn));
   document.querySelectorAll('.director-output').forEach(el => el.style.display = 'none');
   const map = { final: 'directorFinalOutput', timeline: 'directorTimelineOutput', summary: 'directorSummaryOutput', json: 'directorJsonOutput' };
-  $(map[btn.dataset.result]).style.display = 'block';
+  if ($(map[btn.dataset.result])) $(map[btn.dataset.result]).style.display = 'block';
 }));
 
 $('copyDirectorButton')?.addEventListener('click', async () => {
   const active = document.querySelector('.result-tab.active')?.dataset.result || 'final';
   const map = { final: 'directorFinalOutput', timeline: 'directorTimelineOutput', summary: 'directorSummaryOutput', json: 'directorJsonOutput' };
-  await navigator.clipboard.writeText($(map[active]).value);
-  showStatus('Hasil berhasil disalin.');
+  const value = $(map[active])?.value || '';
+  try {
+    await navigator.clipboard.writeText(value);
+    showStatus('Hasil berhasil disalin.');
+  } catch {
+    showStatus('Gagal menyalin otomatis. Silakan copy manual dari panel.');
+  }
 });
+
+$('closeDirectorModal')?.addEventListener('click', closeDirectorModal);
+$('directorResultModal')?.addEventListener('click', e => {
+  if (e.target.id === 'directorResultModal') closeDirectorModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDirectorModal(); });
 
 $('resetDirectorButton')?.addEventListener('click', () => {
   const ids = ['char1Name','char1Gender','char1Appearance','char1Clothing','char2Name','char2Gender','char2Appearance','char2Clothing','fightDetails','fightAttacks','customDescription','customSubject','customProduct','customLocation','customTime','customBackground','customLighting','customMood','customInstructions'];
   ids.forEach(id => { if ($(id)) $(id).value = ''; });
-  directorImages.char1 = {base64:'',mimeType:''}; directorImages.char2 = {base64:'',mimeType:''};
+  directorImages.char1 = {base64:'',mimeType:''};
+  directorImages.char2 = {base64:'',mimeType:''};
+  ['fighterChar1Input','fighterChar2Input'].forEach(id => { if ($(id)) $(id).value = ''; });
   ['fighterChar1Preview','fighterChar2Preview'].forEach(id => { if ($(id)) { $(id).src=''; $(id).style.display='none'; }});
   ['char1Lock','char2Lock','customSubjectLock'].forEach(id => { if ($(id)) $(id).checked = true; });
-  $('directorLanguage').value = 'Indonesia';
-  $('directorResult').style.display = 'none';
-  showStatus('Prompt Director telah di-reset.');
+  if ($('directorLanguage')) $('directorLanguage').value = 'Indonesia';
+  directorMode = 'fighter';
+  updateDirectorModeUI();
+  closeDirectorModal();
+  showStatus('Prompt Director telah di-reset ke mode FIGHTER.');
 });
