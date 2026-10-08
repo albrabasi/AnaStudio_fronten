@@ -297,3 +297,177 @@ async function audioBase64ToMp3(base64, mimeType) {
 }
 
 buildVoicePanel();
+
+// ---------------- AI PROMPT DIRECTOR ----------------
+let directorMode = 'fighter';
+const directorImages = {
+  char1: { base64: '', mimeType: '' },
+  char2: { base64: '', mimeType: '' }
+};
+
+function setupDirectorImage(slot) {
+  const input = $(`fighterChar${slot}Input`);
+  const box = $(`fighterChar${slot}Box`);
+  const preview = $(`fighterChar${slot}Preview`);
+  if (!input || !box) return;
+  box.addEventListener('click', () => input.click());
+  input.addEventListener('change', async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) return showStatus('Ukuran gambar karakter maksimal 10MB.');
+    directorImages[`char${slot}`].base64 = await readFileAsBase64(file);
+    directorImages[`char${slot}`].mimeType = file.type || 'image/jpeg';
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    showStatus(`Referensi karakter ${slot} siap.`);
+  });
+}
+setupDirectorImage(1); setupDirectorImage(2);
+
+document.querySelectorAll('.mode-tab').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  directorMode = btn.dataset.mode;
+  $('fighterDirectorForm').style.display = directorMode === 'fighter' ? 'block' : 'none';
+  $('customDirectorForm').style.display = directorMode === 'custom' ? 'block' : 'none';
+  $('directorResult').style.display = 'none';
+  showStatus('');
+}));
+
+async function analyzeDirectorCharacter(slot) {
+  const img = directorImages[`char${slot}`];
+  if (!img.base64) return showStatus(`Upload referensi karakter ${slot} terlebih dahulu.`);
+  const btn = $(`analyzeChar${slot}Btn`);
+  const original = btn.textContent;
+  setBusy(btn, true, original);
+  showStatus(`AI sedang menganalisis karakter ${slot}...`);
+  try {
+    const data = await callBackend({
+      mode: 'analyze_character',
+      imageBase64: img.base64,
+      mimeType: img.mimeType
+    });
+    const r = data.character || {};
+    $(`char${slot}Name`).value = r.name || '';
+    $(`char${slot}Gender`).value = r.gender_age || '';
+    $(`char${slot}Appearance`).value = r.appearance || '';
+    $(`char${slot}Clothing`).value = r.clothing || '';
+    showStatus(`Analisis karakter ${slot} selesai. Silakan koreksi jika diperlukan.`);
+  } catch (e) {
+    showStatus('Gagal menganalisis karakter: ' + e.message);
+  } finally {
+    setBusy(btn, false, original);
+  }
+}
+$('analyzeChar1Btn')?.addEventListener('click', () => analyzeDirectorCharacter(1));
+$('analyzeChar2Btn')?.addEventListener('click', () => analyzeDirectorCharacter(2));
+
+function directorPayload() {
+  const language = $('directorLanguage')?.value || 'Indonesia';
+  if (directorMode === 'fighter') {
+    return {
+      mode: 'prompt_director',
+      directorType: 'fighter',
+      language,
+      character1: {
+        name: $('char1Name').value, genderAge: $('char1Gender').value,
+        appearance: $('char1Appearance').value, clothing: $('char1Clothing').value,
+        fightingStyle: $('char1Style').value, refLock: $('char1Lock').checked
+      },
+      character2: {
+        name: $('char2Name').value, genderAge: $('char2Gender').value,
+        appearance: $('char2Appearance').value, clothing: $('char2Clothing').value,
+        fightingStyle: $('char2Style').value, refLock: $('char2Lock').checked
+      },
+      environment: {
+        location: $('fightLocation').value, atmosphere: $('fightAtmosphere').value,
+        details: $('fightDetails').value, aspectRatio: $('fightRatio').value,
+        cinematicStyle: $('fightCinematic').value
+      },
+      action: {
+        duration: $('fightDuration').value, tempo: $('fightTempo').value,
+        intensity: $('fightIntensity').value, camera: $('fightCamera').value,
+        ending: $('fightEnding').value
+      },
+      choreography: {
+        combination: $('fightCombination').value, attacks: $('fightAttacks').value,
+        movement: $('fightMovement').value, impact: $('fightImpact').value,
+        logic: $('fightLogic').value
+      }
+    };
+  }
+  return {
+    mode: 'prompt_director',
+    directorType: 'custom',
+    language,
+    scene: {
+      type: $('customSceneType').value, description: $('customDescription').value,
+      subject: $('customSubject').value, product: $('customProduct').value,
+      subjectRefLock: $('customSubjectLock').checked
+    },
+    environment: {
+      location: $('customLocation').value, timeWeather: $('customTime').value,
+      background: $('customBackground').value, lighting: $('customLighting').value
+    },
+    directing: {
+      camera: $('customCamera').value, cinematicStyle: $('customCinematic').value,
+      duration: $('customDuration').value, aspectRatio: $('customRatio').value,
+      mood: $('customMood').value, instructions: $('customInstructions').value
+    }
+  };
+}
+
+function displayDirectorResult(data) {
+  $('directorResult').style.display = 'block';
+  $('directorFinalOutput').value = data.finalPrompt || '';
+  $('directorTimelineOutput').value = data.timeline || '';
+  $('directorSummaryOutput').value = data.summary || '';
+  $('directorJsonOutput').value = JSON.stringify(data.json || data.input || {}, null, 2);
+  document.querySelectorAll('.result-tab').forEach(b => b.classList.remove('active'));
+  document.querySelector('.result-tab[data-result="final"]')?.classList.add('active');
+  document.querySelectorAll('.director-output').forEach(el => el.style.display = 'none');
+  $('directorFinalOutput').style.display = 'block';
+}
+
+$('generateDirectorButton')?.addEventListener('click', async () => {
+  const payload = directorPayload();
+  if (directorMode === 'custom' && !payload.scene.description.trim()) return showStatus('Deskripsi adegan belum diisi.');
+  const btn = $('generateDirectorButton');
+  setBusy(btn, true, '✨ Generate Prompt');
+  showStatus('AI Prompt Director sedang menyusun adegan, timeline, dan prompt...');
+  try {
+    const data = await callBackend(payload);
+    displayDirectorResult(data);
+    showStatus('Prompt Director berhasil dibuat.');
+  } catch (e) {
+    showStatus('Terjadi kesalahan: ' + e.message);
+  } finally {
+    setBusy(btn, false, '✨ Generate Prompt');
+  }
+});
+
+document.querySelectorAll('.result-tab').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.result-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.director-output').forEach(el => el.style.display = 'none');
+  const map = { final: 'directorFinalOutput', timeline: 'directorTimelineOutput', summary: 'directorSummaryOutput', json: 'directorJsonOutput' };
+  $(map[btn.dataset.result]).style.display = 'block';
+}));
+
+$('copyDirectorButton')?.addEventListener('click', async () => {
+  const active = document.querySelector('.result-tab.active')?.dataset.result || 'final';
+  const map = { final: 'directorFinalOutput', timeline: 'directorTimelineOutput', summary: 'directorSummaryOutput', json: 'directorJsonOutput' };
+  await navigator.clipboard.writeText($(map[active]).value);
+  showStatus('Hasil berhasil disalin.');
+});
+
+$('resetDirectorButton')?.addEventListener('click', () => {
+  const ids = ['char1Name','char1Gender','char1Appearance','char1Clothing','char2Name','char2Gender','char2Appearance','char2Clothing','fightDetails','fightAttacks','customDescription','customSubject','customProduct','customLocation','customTime','customBackground','customLighting','customMood','customInstructions'];
+  ids.forEach(id => { if ($(id)) $(id).value = ''; });
+  directorImages.char1 = {base64:'',mimeType:''}; directorImages.char2 = {base64:'',mimeType:''};
+  ['fighterChar1Preview','fighterChar2Preview'].forEach(id => { if ($(id)) { $(id).src=''; $(id).style.display='none'; }});
+  ['char1Lock','char2Lock','customSubjectLock'].forEach(id => { if ($(id)) $(id).checked = true; });
+  $('directorLanguage').value = 'Indonesia';
+  $('directorResult').style.display = 'none';
+  showStatus('Prompt Director telah di-reset.');
+});
