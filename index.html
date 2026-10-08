@@ -293,8 +293,11 @@
                 <h3>🎬 ADEGAN UMUM / CUSTOM</h3>
                 <label for="customSceneType">Jenis Adegan</label>
                 <select id="customSceneType"><option>Influencer</option><option>Promosi Produk</option><option>Iklan</option><option>Film / Drama</option><option>Storytelling</option><option>Tutorial</option><option>Review Produk</option><option>Food</option><option>Travel</option><option>Comedy</option><option>Romance</option><option>Action</option><option>Cinematic</option><option>Custom</option></select>
-                <label for="customDescription">Deskripsi Adegan</label>
-                <textarea id="customDescription" style="min-height:160px" placeholder="Jelaskan adegan yang ingin dibuat..."></textarea>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px;">
+                  <label for="customDescription" style="margin:0;">Deskripsi Adegan</label>
+                  <button type="button" id="generateCustomSceneBtn" class="analyze-btn" style="padding:6px 12px;font-size:13px;" disabled>✨ AI Saran</button>
+                </div>
+                <textarea id="customDescription" style="min-height:160px" placeholder="Jelaskan adegan yang ingin dibuat atau gunakan AI Saran..."></textarea>
                 <label for="customSubject">Subjek / Karakter</label><textarea id="customSubject" placeholder="Nama, usia, penampilan, pakaian, ekspresi..."></textarea>
                 <label for="customProduct">Produk / Objek (opsional)</label><textarea id="customProduct" placeholder="Nama produk, bentuk, warna, label..."></textarea>
                 <label class="checkline"><input id="customSubjectLock" type="checkbox" checked> Subject Ref Lock <b>ON</b></label>
@@ -393,6 +396,6 @@
   </button>
 </nav>
 
-<script src="./js/app.js?v=20261008-pro"></script>
+<script src="./js/app.js?v=20261008-pro2"></script>
 </body>
 </html>
