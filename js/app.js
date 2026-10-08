@@ -36,12 +36,14 @@ function readFileAsBase64(file) {
   });
 }
 
-// Tabs
- document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+// Tabs (Desktop & Mobile Bottom Nav)
+document.querySelectorAll('.tab, .mobile-nav-item').forEach(btn => btn.addEventListener('click', () => {
+  const targetTab = btn.dataset.tab;
+  document.querySelectorAll('.tab, .mobile-nav-item').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === targetTab);
+  });
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  tab.classList.add('active');
-  $(tab.dataset.tab)?.classList.add('active');
+  $(targetTab)?.classList.add('active');
   showStatus('');
 }));
 
@@ -307,10 +309,11 @@ console.info('AnaStudio Prompt Director v2026.10.08.3 loaded');
 let directorMode = 'fighter';
 const directorImages = {
   char1: { base64: '', mimeType: '' },
-  char2: { base64: '', mimeType: '' }
+  char2: { base64: '', mimeType: '' },
+  custom: { base64: '', mimeType: '' }
 };
 
-async function compressImageForUpload(file, maxSize = 1200, quality = 0.65) {
+async function compressImageForUpload(file, maxSize = 800, quality = 0.55) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -320,8 +323,8 @@ async function compressImageForUpload(file, maxSize = 1200, quality = 0.65) {
         let width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
         let height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
         let dataUrl = '';
-        // Keep the JSON request safely below common Vercel/serverless body limits.
-        for (let attempt = 0; attempt < 6; attempt++) {
+        // Keep the JSON request lightweight for fast upload and inference.
+        for (let attempt = 0; attempt < 5; attempt++) {
           const canvas = document.createElement('canvas');
           canvas.width = width; canvas.height = height;
           const ctx = canvas.getContext('2d', { alpha: false });
@@ -331,14 +334,14 @@ async function compressImageForUpload(file, maxSize = 1200, quality = 0.65) {
           ctx.drawImage(img, 0, 0, width, height);
           dataUrl = canvas.toDataURL('image/jpeg', quality);
           const estimatedBytes = Math.floor((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
-          if (estimatedBytes <= 850 * 1024) break;
-          if (quality > 0.45) quality -= 0.08;
-          else { width = Math.max(480, Math.round(width * 0.78)); height = Math.max(480, Math.round(height * 0.78)); }
+          if (estimatedBytes <= 350 * 1024) break;
+          if (quality > 0.4) quality -= 0.08;
+          else { width = Math.max(400, Math.round(width * 0.75)); height = Math.max(400, Math.round(height * 0.75)); }
         }
         const base64 = dataUrl.split(',')[1] || '';
         const estimatedBytes = Math.floor(base64.length * 0.75);
         URL.revokeObjectURL(url);
-        if (!base64 || estimatedBytes > 1100 * 1024) throw new Error('Gambar masih terlalu besar setelah kompresi.');
+        if (!base64 || estimatedBytes > 600 * 1024) throw new Error('Gambar masih terlalu besar setelah kompresi.');
         resolve({ base64, mimeType: 'image/jpeg' });
       } catch (err) {
         URL.revokeObjectURL(url);
@@ -423,6 +426,105 @@ function setupDirectorImage(slot) {
   };
 }
 
+function ensureCustomPreviewClearButton() {
+  const preview = $('customImagePreview');
+  if (!preview) return null;
+  let wrap = preview.parentElement;
+  if (!wrap?.classList.contains('director-preview-wrap')) {
+    wrap = document.createElement('div');
+    wrap.className = 'director-preview-wrap';
+    preview.parentNode.insertBefore(wrap, preview);
+    wrap.appendChild(preview);
+  }
+  let clear = $('clearCustomBtn');
+  if (!clear) {
+    clear = document.createElement('button');
+    clear.type = 'button';
+    clear.id = 'clearCustomBtn';
+    clear.className = 'preview-clear';
+    clear.setAttribute('aria-label', 'Hapus referensi kustom');
+    clear.textContent = '×';
+    wrap.appendChild(clear);
+  }
+  clear.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    clearCustomImage();
+  };
+  return clear;
+}
+
+function clearCustomImage() {
+  directorImages.custom = { base64: '', mimeType: '' };
+  const input = $('customImageInput');
+  const preview = $('customImagePreview');
+  if (input) input.value = '';
+  if (preview) {
+    preview.src = '';
+    preview.style.display = 'none';
+  }
+  showStatus('Referensi gambar kustom dihapus.');
+}
+
+function setupCustomImage() {
+  const input = $('customImageInput');
+  const box = $('customImageBox');
+  const preview = $('customImagePreview');
+  if (!input || !box || !preview) return;
+  ensureCustomPreviewClearButton();
+
+  box.onclick = (event) => {
+    if (event.target === input) return;
+    input.click();
+  };
+
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return showStatus('File referensi harus berupa gambar.');
+    if (file.size > 10 * 1024 * 1024) return showStatus('Ukuran gambar maksimal 10MB.');
+    try {
+      showStatus('Menyiapkan referensi gambar kustom...');
+      const compressed = await compressImageForUpload(file);
+      directorImages.custom = compressed;
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+      showStatus('Referensi gambar kustom siap.');
+    } catch (err) {
+      input.value = '';
+      showStatus('Gagal menyiapkan gambar: ' + err.message);
+    }
+  };
+}
+
+async function analyzeCustomImage() {
+  const img = directorImages.custom;
+  if (!img.base64) return showStatus('Upload referensi gambar kustom terlebih dahulu.');
+  const btn = $('analyzeCustomBtn');
+  if (!btn) return;
+  const original = btn.dataset.originalText || btn.textContent;
+  btn.dataset.originalText = original;
+  setBusy(btn, true, original);
+  showStatus('AI sedang menganalisis gambar referensi...');
+  try {
+    const data = await callBackend({
+      mode: 'analyze_custom_image',
+      imageBase64: img.base64,
+      mimeType: img.mimeType
+    });
+    const r = data.customAnalysis || {};
+    if ($('customDescription') && r.description) $('customDescription').value = r.description;
+    if ($('customSubject') && r.subject) $('customSubject').value = r.subject;
+    if ($('customProduct') && r.product) $('customProduct').value = r.product;
+    if ($('customLocation') && r.location) $('customLocation').value = r.location;
+    showStatus('Analisis gambar kustom selesai!');
+  } catch (e) {
+    showStatus('Gagal menganalisis gambar: ' + e.message);
+  } finally {
+    setBusy(btn, false, original);
+  }
+}
+
 function updateDirectorModeUI() {
   document.querySelectorAll('.mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === directorMode));
   if ($('fighterDirectorForm')) $('fighterDirectorForm').style.display = directorMode === 'fighter' ? 'block' : 'none';
@@ -433,6 +535,7 @@ function updateDirectorModeUI() {
 
 setupDirectorImage(1);
 setupDirectorImage(2);
+setupCustomImage();
 updateDirectorModeUI();
 
 document.querySelectorAll('.mode-tab').forEach(btn => btn.addEventListener('click', () => {
@@ -470,11 +573,13 @@ async function analyzeDirectorCharacter(slot) {
   }
 }
 
-// Explicit bindings untuk memastikan kedua tombol aktif.
+// Explicit bindings untuk memastikan tombol aktif.
 const analyze1 = $('analyzeChar1Btn');
 const analyze2 = $('analyzeChar2Btn');
+const analyzeCustom = $('analyzeCustomBtn');
 if (analyze1) analyze1.onclick = (e) => { e.preventDefault(); analyzeDirectorCharacter(1); };
 if (analyze2) analyze2.onclick = (e) => { e.preventDefault(); analyzeDirectorCharacter(2); };
+if (analyzeCustom) analyzeCustom.onclick = (e) => { e.preventDefault(); analyzeCustomImage(); };
 
 function directorPayload() {
   const language = $('directorLanguage')?.value || 'Indonesia';
@@ -513,7 +618,8 @@ function directorPayload() {
     scene: {
       type: $('customSceneType').value, description: $('customDescription').value,
       subject: $('customSubject').value, product: $('customProduct').value,
-      subjectRefLock: $('customSubjectLock').checked
+      subjectRefLock: $('customSubjectLock').checked,
+      imageBase64: directorImages.custom.base64, mimeType: directorImages.custom.mimeType
     },
     environment: {
       location: $('customLocation').value, timeWeather: $('customTime').value,
@@ -610,8 +716,9 @@ $('resetDirectorButton')?.addEventListener('click', () => {
   ids.forEach(id => { if ($(id)) $(id).value = ''; });
   directorImages.char1 = {base64:'',mimeType:''};
   directorImages.char2 = {base64:'',mimeType:''};
-  ['fighterChar1Input','fighterChar2Input'].forEach(id => { if ($(id)) $(id).value = ''; });
-  ['fighterChar1Preview','fighterChar2Preview'].forEach(id => { if ($(id)) { $(id).src=''; $(id).style.display='none'; }});
+  directorImages.custom = {base64:'',mimeType:''};
+  ['fighterChar1Input','fighterChar2Input','customImageInput'].forEach(id => { if ($(id)) $(id).value = ''; });
+  ['fighterChar1Preview','fighterChar2Preview','customImagePreview'].forEach(id => { if ($(id)) { $(id).src=''; $(id).style.display='none'; }});
   ['char1Lock','char2Lock','customSubjectLock'].forEach(id => { if ($(id)) $(id).checked = true; });
   if ($('directorLanguage')) $('directorLanguage').value = 'Indonesia';
   directorMode = 'fighter';
