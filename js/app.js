@@ -141,8 +141,18 @@ $('uploadBox')?.addEventListener('click', () => $('imageInput').click());
 $('imageInput')?.addEventListener('change', async e => {
   const file = e.target.files?.[0]; if (!file) return;
   if (file.size > 10 * 1024 * 1024) return showStatus('Ukuran gambar maksimal 10MB.');
-  imageMimeType = file.type; imageBase64 = await readFileAsBase64(file);
-  $('imagePreview').src = URL.createObjectURL(file); $('imagePreview').style.display = 'block'; showStatus('Gambar siap diproses.');
+  try {
+    showStatus('Menyiapkan gambar produk...');
+    const compressed = await compressImageForUpload(file);
+    imageBase64 = compressed.base64;
+    imageMimeType = compressed.mimeType;
+    $('imagePreview').src = URL.createObjectURL(file);
+    $('imagePreview').style.display = 'block';
+    showStatus('Gambar siap diproses. Versi terkompresi akan dikirim ke AI.');
+  } catch (error) {
+    imageBase64 = ''; imageMimeType = '';
+    showStatus('Gagal menyiapkan gambar: ' + error.message);
+  }
 });
 $('generateImageButton')?.addEventListener('click', generateImagePrompt);
 $('copyPromptButton')?.addEventListener('click', async () => { await navigator.clipboard.writeText($('promptOutput').value); showStatus('Prompt berhasil disalin.'); });
@@ -178,20 +188,28 @@ async function generateHookOrCta(type) {
 }
 async function generateImagePrompt() {
   if (!imageBase64) return showStatus('Silakan upload gambar terlebih dahulu.');
-  const button = $('generateImageButton'); setBusy(button, true, '▶ Generate Prompt Video Flow'); showStatus('AI sedang membaca gambar...');
+  const button = $('generateImageButton'); setBusy(button, true, '▶ Buat Voice-over dari Gambar'); showStatus('AI sedang menganalisis gambar dan menulis voice-over...');
   try {
     const data = await callBackend({
-      mode: 'image_prompt', imageBase64, mimeType: imageMimeType,
+      mode: 'image_voiceover', imageBase64, mimeType: imageMimeType,
       videoType: $('imageStyle').value, duration: $('videoDuration').value,
-      visualStyle: $('videoStyle').value, hook: $('hookInput').value, cta: $('ctaInput').value,
-      language: $('imageLanguage').value, voiceName: $('imageVoice').value
+      narrationStyle: $('videoStyle').value, description: $('imageDescription')?.value.trim() || '', hook: $('hookInput').value, cta: $('ctaInput').value,
+      language: $('imageLanguage').value, voiceName: $('imageVoice').value,
+      character: 'ramah', speed: '1.0'
     });
-    $('promptOutput').value = data.prompt || ''; 
-    $('copyPromptButton').style.display = 'block'; 
-    $('generateAudioFromPromptButton').style.display = 'block';
-    showStatus('Prompt video berhasil dibuat.');
+    $('promptOutput').value = data.narration || '';
+    $('copyPromptButton').style.display = 'block';
+    const blob = await audioBase64ToMp3(data.audioBase64, data.mimeType || 'audio/wav');
+    if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+    currentAudioUrl = URL.createObjectURL(blob);
+    $('audioPlayer').src = currentAudioUrl;
+    $('audioPlayer').style.display = 'block';
+    $('downloadButton').href = currentAudioUrl;
+    $('downloadButton').download = (($('imageFileName')?.value.trim() || 'AnaImageVoiceover').replace(/[^a-zA-Z0-9_-]/g, '_')) + '.mp3';
+    $('downloadButton').style.display = 'block';
+    showStatus('Voice-over berhasil dibuat dari analisis gambar.');
   } catch (e) { showStatus('Terjadi kesalahan: ' + e.message); }
-  finally { setBusy(button, false, '▶ Generate Prompt Video Flow'); }
+  finally { setBusy(button, false, '▶ Buat Voice-over dari Gambar'); }
 }
 
 $('generateAudioFromPromptButton')?.addEventListener('click', async () => {
@@ -308,9 +326,9 @@ console.info('AnaStudio Prompt Director v2026.10.08.3 loaded');
 // ---------------- AI PROMPT DIRECTOR ----------------
 let directorMode = 'fighter';
 const directorImages = {
-  char1: { base64: '', mimeType: '' },
-  char2: { base64: '', mimeType: '' },
-  custom: { base64: '', mimeType: '' }
+  char1: { base64: '', mimeType: '', fileName: '' },
+  char2: { base64: '', mimeType: '', fileName: '' },
+  custom: { base64: '', mimeType: '', fileName: '' }
 };
 
 async function compressImageForUpload(file, maxSize = 800, quality = 0.55) {
@@ -382,7 +400,7 @@ function ensureDirectorPreviewClearButton(slot) {
 }
 
 function clearDirectorImage(slot) {
-  directorImages[`char${slot}`] = { base64: '', mimeType: '' };
+  directorImages[`char${slot}`] = { base64: '', mimeType: '', fileName: '' };
   const input = $(`fighterChar${slot}Input`);
   const preview = $(`fighterChar${slot}Preview`);
   if (input) input.value = '';
@@ -415,7 +433,7 @@ function setupDirectorImage(slot) {
     try {
       showStatus(`Menyiapkan referensi karakter ${slot}...`);
       const compressed = await compressImageForUpload(file);
-      directorImages[`char${slot}`] = compressed;
+      directorImages[`char${slot}`] = { ...compressed, fileName: file.name };
       preview.src = URL.createObjectURL(file);
       preview.style.display = 'block';
       showStatus(`Referensi karakter ${slot} siap. Gambar sudah dikompres untuk server.`);
@@ -455,7 +473,7 @@ function ensureCustomPreviewClearButton() {
 }
 
 function clearCustomImage() {
-  directorImages.custom = { base64: '', mimeType: '' };
+  directorImages.custom = { base64: '', mimeType: '', fileName: '' };
   const input = $('customImageInput');
   const preview = $('customImagePreview');
   if (input) input.value = '';
@@ -486,7 +504,7 @@ function setupCustomImage() {
     try {
       showStatus('Menyiapkan referensi gambar kustom...');
       const compressed = await compressImageForUpload(file);
-      directorImages.custom = compressed;
+      directorImages.custom = { ...compressed, fileName: file.name };
       preview.src = URL.createObjectURL(file);
       preview.style.display = 'block';
       showStatus('Referensi gambar kustom siap.');
@@ -556,7 +574,11 @@ $('generateCustomSceneBtn')?.addEventListener('click', async () => {
 });
 
 function updateDirectorModeUI() {
-  document.querySelectorAll('.mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === directorMode));
+  document.querySelectorAll('.mode-tab').forEach(b => {
+    const active = b.dataset.mode === directorMode;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-selected', String(active));
+  });
   if ($('fighterDirectorForm')) $('fighterDirectorForm').style.display = directorMode === 'fighter' ? 'block' : 'none';
   if ($('customDirectorForm')) $('customDirectorForm').style.display = directorMode === 'custom' ? 'block' : 'none';
   const marker = $('directorModeMarker');
@@ -619,12 +641,14 @@ function directorPayload() {
       character1: {
         name: $('char1Name').value, genderAge: $('char1Gender').value,
         appearance: $('char1Appearance').value, clothing: $('char1Clothing').value,
-        fightingStyle: $('char1Style').value, refLock: $('char1Lock').checked
+        fightingStyle: $('char1Style').value, refLock: $('char1Lock').checked,
+        imageBase64: directorImages.char1.base64, mimeType: directorImages.char1.mimeType, fileName: directorImages.char1.fileName
       },
       character2: {
         name: $('char2Name').value, genderAge: $('char2Gender').value,
         appearance: $('char2Appearance').value, clothing: $('char2Clothing').value,
-        fightingStyle: $('char2Style').value, refLock: $('char2Lock').checked
+        fightingStyle: $('char2Style').value, refLock: $('char2Lock').checked,
+        imageBase64: directorImages.char2.base64, mimeType: directorImages.char2.mimeType, fileName: directorImages.char2.fileName
       },
       environment: {
         location: $('fightLocation').value, atmosphere: $('fightAtmosphere').value,
@@ -649,7 +673,7 @@ function directorPayload() {
       type: $('customSceneType').value, description: $('customDescription').value,
       subject: $('customSubject').value, product: $('customProduct').value,
       subjectRefLock: $('customSubjectLock').checked,
-      imageBase64: directorImages.custom.base64, mimeType: directorImages.custom.mimeType
+      imageBase64: directorImages.custom.base64, mimeType: directorImages.custom.mimeType, fileName: directorImages.custom.fileName
     },
     environment: {
       location: $('customLocation').value, timeWeather: $('customTime').value,
@@ -744,9 +768,9 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDirecto
 $('resetDirectorButton')?.addEventListener('click', () => {
   const ids = ['char1Name','char1Gender','char1Appearance','char1Clothing','char2Name','char2Gender','char2Appearance','char2Clothing','fightDetails','fightAttacks','customDescription','customSubject','customProduct','customLocation','customTime','customBackground','customLighting','customMood','customInstructions'];
   ids.forEach(id => { if ($(id)) $(id).value = ''; });
-  directorImages.char1 = {base64:'',mimeType:''};
-  directorImages.char2 = {base64:'',mimeType:''};
-  directorImages.custom = {base64:'',mimeType:''};
+  directorImages.char1 = {base64:'',mimeType:'',fileName:''};
+  directorImages.char2 = {base64:'',mimeType:'',fileName:''};
+  directorImages.custom = {base64:'',mimeType:'',fileName:''};
   ['fighterChar1Input','fighterChar2Input','customImageInput'].forEach(id => { if ($(id)) $(id).value = ''; });
   ['fighterChar1Preview','fighterChar2Preview','customImagePreview'].forEach(id => { if ($(id)) { $(id).src=''; $(id).style.display='none'; }});
   ['char1Lock','char2Lock','customSubjectLock'].forEach(id => { if ($(id)) $(id).checked = true; });
