@@ -129,7 +129,7 @@
 
       <!-- IMAGE PROMPT PANEL -->
       <section id="imagePanel" class="panel">
-        <div class="notice">Upload gambar produk. AI akan membaca gambar lalu membuat prompt video siap ditempel ke Flow/Sora.</div>
+        <div class="notice">Upload gambar produk atau objek. AI akan menganalisis gambar, menulis naskah voice-over, lalu membuat audionya.</div>
         <label for="imageInput">Gambar Produk</label>
         <div class="upload" id="uploadBox">
           <div style="font-size:42px">▧＋</div>
@@ -138,7 +138,7 @@
           <input id="imageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
         </div>
         <img id="imagePreview" class="preview" alt="Pratinjau gambar">
-        <label for="imageStyle">Tujuan Video</label>
+        <label for="imageStyle">Tujuan Voice-over</label>
         <select id="imageStyle">
           <option value="affiliate">Promosi affiliate</option>
           <option value="review">Review produk</option>
@@ -148,19 +148,23 @@
           <option value="drama">Konten drama</option>
           <option value="dokumenter">Konten dokumenter</option>
         </select>
-        <label for="videoDuration">Durasi Video</label>
+        <label for="videoDuration">Durasi Voice-over</label>
         <select id="videoDuration">
           <option value="5">5 detik</option>
           <option value="10" selected>10 detik</option>
           <option value="15">15 detik</option>
         </select>
-        <label for="videoStyle">Gaya Visual</label>
+        <label for="videoStyle">Gaya Narasi</label>
         <select id="videoStyle">
-          <option value="realistis seperti konten asli">Realistis seperti konten asli</option>
-          <option value="UGC review natural">UGC review natural</option>
-          <option value="cinematic profesional">Cinematic profesional</option>
-          <option value="hands-only tutorial">Hands-only tutorial</option>
+          <option value="influencer: ceria, akrab, energik, dan persuasif seperti konten sosial media">Influencer</option>
+          <option value="narator: hangat, jelas, deskriptif, dan mampu membangun suasana">Narator</option>
+          <option value="pembaca berita atau MC: profesional, artikulatif, percaya diri, dan terstruktur">Pembaca Berita / MC</option>
+          <option value="nasihat: tenang, empatik, tulus, dan meyakinkan">Nasihat</option>
+          <option value="santai: alami, ringan, ramah, seperti berbicara kepada teman">Santai</option>
+          <option value="standar: natural, jelas, seimbang, dan mudah dipahami" selected>Standar</option>
         </select>
+        <label for="imageDescription">Deskripsi atau poin penting (opsional)</label>
+        <textarea id="imageDescription" placeholder="Contoh: Tekankan bahan, manfaat utama, harga promo, atau target pembeli. AI akan memakai gambar sebagai referensi utama."></textarea>
         
         <label for="hookInput">Hook (opsional)</label>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -187,11 +191,10 @@
         </select>
         <label for="imageFileName">Nama File Audio</label>
         <input id="imageFileName" placeholder="AnaImage_01">
-        <button class="primary" id="generateImageButton">▶ Generate Prompt Video Flow</button>
-        <button class="primary" id="copyPromptButton" style="display:none;background:#334155">⧉ Copy Prompt</button>
-        <button class="primary" id="generateAudioFromPromptButton" style="display:none;background:linear-gradient(135deg,#0284c7,#2563eb);margin-top:15px;">▶ Buat Suara Narasi dari Prompt</button>
-        <label for="promptOutput">Hasil Prompt Video</label>
-        <textarea id="promptOutput" readonly placeholder="Prompt video akan muncul di sini..."></textarea>
+        <button class="primary" id="generateImageButton">▶ Buat Voice-over dari Gambar</button>
+        <button class="primary" id="copyPromptButton" style="display:none;background:#334155">⧉ Copy Naskah Voice-over</button>
+        <label for="promptOutput">Naskah Voice-over</label>
+        <textarea id="promptOutput" readonly placeholder="Naskah voice-over hasil analisis gambar akan muncul di sini..."></textarea>
       </section>
 
       <!-- PROMPT DIRECTOR PANEL -->
@@ -201,7 +204,7 @@
           <button type="button" class="mode-tab active" data-mode="fighter" role="tab" aria-selected="true">⚔️ FIGHTER</button>
           <button type="button" class="mode-tab" data-mode="custom" role="tab" aria-selected="false">🎬 UMUM / CUSTOM</button>
         </div>
-        <div id="directorModeIndicator" class="director-mode-marker">MODE AKTIF: <strong>⚔️ FIGHTER</strong></div>
+        <div id="directorModeMarker" class="director-mode-marker">MODE AKTIF: ⚔️ FIGHTER</div>
 
         <!-- FIGHTER FORM -->
         <div id="fighterDirectorForm" class="director-form">
