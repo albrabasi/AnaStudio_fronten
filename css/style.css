@@ -704,3 +704,101 @@ body.director-modal-open {
     display: none;
   }
 }
+
+/* ==========================================
+   WT REMOVER STYLES
+   ========================================== */
+.remover-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+@media(max-width: 780px) {
+  .remover-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.remover-stage {
+  background: #070b10;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #1e293b;
+}
+.remover-wrap {
+  width: 100%;
+  margin: 0 auto;
+}
+.remover-stage canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none;
+  cursor: crosshair;
+  background: #000;
+  border-radius: 8px;
+}
+.remover-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  color: #c9d6e0;
+}
+.remover-bar input[type=range] {
+  flex: 1;
+}
+.remover-panel {
+  background: #0b0f19;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+.remover-panel .row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.remover-panel button, .remover-panel select {
+  font: inherit;
+  color: #f1f5f9;
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.remover-panel button.on {
+  border-color: #14b8a6;
+  color: #14b8a6;
+  background: rgba(20, 184, 166, 0.1);
+}
+.remover-panel button.main, .remover-panel button#removerRender {
+  background: #14b8a6;
+  color: #070b14;
+  border-color: #14b8a6;
+  font-weight: 600;
+}
+.remover-panel button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+.remover-panel .chk {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #f1f5f9;
+  font-size: 14px;
+  margin: 4px 0;
+}
+.remover-panel input[type=checkbox] {
+  width: auto;
+  padding: 0;
+  margin: 0;
+}
