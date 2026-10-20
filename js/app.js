@@ -44,6 +44,9 @@ document.querySelectorAll('.tab, .mobile-nav-item').forEach(btn => btn.addEventL
   });
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   $(targetTab)?.classList.add('active');
+  if (targetTab === 'wtRemoverPanel') {
+    initWtRemover();
+  }
   showStatus('');
 }));
 
