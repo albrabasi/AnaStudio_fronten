@@ -28,6 +28,7 @@
       <button class="tab" data-tab="voicePanel">〽️ Voice</button>
       <button class="tab" data-tab="imagePanel">▧ Image</button>
       <button class="tab" data-tab="promptDirectorPanel">🎬 Director</button>
+      <button class="tab" data-tab="wtRemoverPanel">🧹 Wt Remover</button>
     </nav>
 
     <main class="content">
@@ -367,6 +368,58 @@
         </div>
       </div>
 
+      <!-- WT REMOVER PANEL -->
+      <section id="wtRemoverPanel" class="panel">
+        <div class="notice"><strong>🧹 Watermark Remover</strong><br>Putar, jeda di frame yang logonya terlihat, lalu sapu area logo dengan brush. Semua diproses di browser, video tidak diunggah.</div>
+        
+        <div class="remover-layout">
+          <section class="remover-stage">
+            <div class="remover-wrap" id="removerWrap"><canvas id="removerView" width="360" height="640"></canvas></div>
+            <div class="remover-bar">
+              <button type="button" id="removerPlay" disabled>Putar</button>
+              <input type="range" id="removerSeek" min="0" max="1000" value="0" disabled aria-label="Posisi video">
+              <span id="removerTime">0:00</span>
+            </div>
+          </section>
+
+          <aside class="remover-panel">
+            <label>Video
+              <input type="file" id="removerFile" accept="video/*">
+            </label>
+            <div class="row">
+              <button type="button" id="removerTBrush" class="on">Brush</button>
+              <button type="button" id="removerTErase">Penghapus</button>
+              <button type="button" id="removerUndo">Urungkan</button>
+              <button type="button" id="removerClear">Kosongkan</button>
+            </div>
+            <label>Ukuran brush
+              <input type="range" id="removerSize" min="10" max="240" value="70">
+            </label>
+            <label>Kekuatan blur
+              <input type="range" id="removerBlur" min="4" max="60" value="28">
+            </label>
+            <label>Nama file hasil (tanpa ekstensi)
+              <input type="text" id="removerFilename" placeholder="AnaStudio_1" value="" maxlength="120" autocomplete="off">
+              <span style="font-size:12px;color:var(--mut);">Kosongkan untuk memakai nama default AnaStudio_1.</span>
+            </label>
+            <label>Gaya
+              <select id="removerStyle"><option value="frost">Kaca es</option><option value="blur">Blur polos</option></select>
+            </label>
+            <label class="chk"><input type="checkbox" id="removerFx" checked> Pratinjau efek</label>
+            <label class="chk"><input type="checkbox" id="removerShowMask" checked> Tampilkan area brush (merah)</label>
+            <div class="row">
+              <button type="button" id="removerSave">Simpan area ini</button>
+            </div>
+            <button type="button" id="removerRender" class="primary" disabled>Render video</button>
+            <div id="removerStatus" style="color:#94a3b8;font-size:13px;min-height:20px;">Pilih video untuk mulai.</div>
+            <div id="removerOut" style="display:none;flex-direction:column;gap:8px;">
+              <video id="removerResult" controls playsinline style="width:100%;max-height:300px;border-radius:6px;background:#000"></video>
+              <a class="dl" id="removerDl" style="color:#2dd4bf;font-weight:600;">Unduh hasil</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
       <div id="status" class="status"></div>
       <audio id="audioPlayer" controls></audio>
       <a id="downloadButton" class="download" style="display:none">Download MP3</a>
@@ -396,6 +449,10 @@
   <button class="mobile-nav-item" data-tab="promptDirectorPanel">
     <span class="nav-icon">🎬</span>
     <span class="nav-label">Director</span>
+  </button>
+  <button class="mobile-nav-item" data-tab="wtRemoverPanel">
+    <span class="nav-icon">🧹</span>
+    <span class="nav-label">Remover</span>
   </button>
 </nav>
 
