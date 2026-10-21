@@ -983,7 +983,7 @@ function initWtRemover() {
   if ($('removerClear')) $('removerClear').onclick = () => { if (!W) return; pushUndo(); mctx.clearRect(0, 0, W, H); dirty = true; };
   if ($('removerSave')) $('removerSave').onclick = () => { if (!W) return; localStorage.setItem('anastudio_wt_mask_' + W + 'x' + H, mask.toDataURL()); say('Area disimpan. Akan dimuat otomatis untuk video ' + W + '×' + H + '.'); };
 
-  /* ---------- render (Frame-by-Frame Precision Render) ---------- */
+  /* ---------- render (Precision Frame Capture with 1x Speed & requestFrame) ---------- */
   const once = (el, ev) => new Promise(r => el.addEventListener(ev, r, { once: true }));
   if ($('removerRender')) {
     $('removerRender').onclick = async () => {
@@ -996,7 +996,7 @@ function initWtRemover() {
       $('removerRender').disabled = true; 
       if ($('removerOut')) $('removerOut').style.display = 'none';
       
-      say('Mempersiapkan render presisi frame-by-frame...');
+      say('Mempersiapkan render presisi...');
       video.pause();
       video.currentTime = 0;
       await once(video, 'seeked');
@@ -1009,11 +1009,7 @@ function initWtRemover() {
         return;
       }
 
-      const fps = 30;
-      const totalFrames = Math.round(duration * fps);
-      const frameInterval = 1 / fps;
-
-      // Use captureStream(0) for manual frame pushing via requestFrame() to prevent frame dropping
+      // Use captureStream(0) for manual frame pushing via requestFrame()
       const stream = view.captureStream(0);
       const videoTrack = stream.getVideoTracks()[0];
 
@@ -1061,32 +1057,29 @@ function initWtRemover() {
         recording = false; 
         $('removerRender').disabled = false; 
         dirty = true;
-        say('Render presisi selesai! Silakan periksa hasil dan unduh.');
+        say('Render selesai! Silakan periksa hasil dan unduh.');
       };
 
-      rec.start();
-      say('Memulai rendering frame-by-frame (tanpa frame terlewat)...');
-
-      video.currentTime = 0;
-      video.playbackRate = 1.0;
+      video.onended = () => { 
+        video.onended = null; 
+        if (rec.state === 'recording') {
+          rec.stop(); 
+        }
+      };
 
       try {
+        rec.start();
+        video.playbackRate = 1.0;
         await video.play();
 
-        let currentFrame = 0;
-        const renderLoop = async () => {
+        const renderLoop = () => {
           if (!recording) return;
-          if (video.ended || video.paused || currentFrame >= totalFrames || video.currentTime >= duration) {
+          if (video.ended || video.paused || video.currentTime >= duration) {
             video.pause();
             if (rec.state === 'recording') {
               rec.stop();
             }
             return;
-          }
-
-          const targetTime = currentFrame * frameInterval;
-          if (Math.abs(video.currentTime - targetTime) > 0.03) {
-            video.currentTime = targetTime;
           }
 
           if (video.readyState >= video.HAVE_CURRENT_DATA) {
@@ -1097,9 +1090,8 @@ function initWtRemover() {
             }
           }
 
-          currentFrame++;
-          const pct = Math.round((currentFrame / totalFrames) * 100);
-          say(`Rendering frame: ${pct}% (${currentFrame}/${totalFrames} frames)`);
+          const pct = Math.round((video.currentTime / duration) * 100);
+          say(`Merender video... ${pct}% (${video.currentTime.toFixed(1)}s / ${duration.toFixed(1)}s)`);
 
           requestAnimationFrame(renderLoop);
         };
@@ -1107,7 +1099,7 @@ function initWtRemover() {
         requestAnimationFrame(renderLoop);
 
       } catch (err) {
-        console.error('Gagal render presisi:', err);
+        console.error('Gagal memulai render video:', err);
         say('Gagal merender video: ' + err.message);
         recording = false;
         $('removerRender').disabled = false;
