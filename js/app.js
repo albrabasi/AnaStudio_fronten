@@ -807,10 +807,57 @@ let W = 0, H = 0, tool = 'brush', drawing = false, last = null, dirty = true, re
 function fmt(t){ t = Math.max(0, t|0); return Math.floor(t/60) + ':' + String(t%60).padStart(2,'0'); }
 function say(t){ $('removerStatus').textContent = t; }
 
+
+let currentVideoUrl = null;
+
+video.preload = 'auto';
+video.playsInline = true;
+
 $('removerFile').onchange = e => {
-  const f = e.target.files[0]; if (!f) return;
-  video.src = URL.createObjectURL(f);
-  say('Memuat video…');
+  const f = e.target.files?.[0];
+  if (!f) return;
+
+  if (!f.type.startsWith('video/')) {
+    say('File yang dipilih bukan video.');
+    return;
+  }
+
+  if (currentVideoUrl) {
+    URL.revokeObjectURL(currentVideoUrl);
+  }
+
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+
+  currentVideoUrl = URL.createObjectURL(f);
+  video.src = currentVideoUrl;
+  video.load();
+
+  say('Memuat video: ' + f.name);
+};
+
+video.onloadedmetadata = () => {
+  console.log(
+    'Video metadata berhasil dibaca:',
+    video.videoWidth,
+    video.videoHeight,
+    video.duration
+  );
+
+  say(
+    'Metadata terbaca: ' +
+    video.videoWidth + ' × ' + video.videoHeight +
+    '. Menyiapkan pratinjau…'
+  );
+};
+
+video.onerror = () => {
+  console.error('Kesalahan pemuatan video:', video.error);
+
+  say(
+    'Video gagal dimuat. Coba MP4 H.264 atau format yang didukung browser.'
+  );
 };
 
 video.onloadedmetadata = () => {
