@@ -983,7 +983,7 @@ function initWtRemover() {
   if ($('removerClear')) $('removerClear').onclick = () => { if (!W) return; pushUndo(); mctx.clearRect(0, 0, W, H); dirty = true; };
   if ($('removerSave')) $('removerSave').onclick = () => { if (!W) return; localStorage.setItem('anastudio_wt_mask_' + W + 'x' + H, mask.toDataURL()); say('Area disimpan. Akan dimuat otomatis untuk video ' + W + '×' + H + '.'); };
 
-  /* ---------- render ---------- */
+  /* ---------- render (Frame-by-Frame Precision Render) ---------- */
   const once = (el, ev) => new Promise(r => el.addEventListener(ev, r, { once: true }));
   if ($('removerRender')) {
     $('removerRender').onclick = async () => {
@@ -996,24 +996,44 @@ function initWtRemover() {
       $('removerRender').disabled = true; 
       if ($('removerOut')) $('removerOut').style.display = 'none';
       
-      say('Mempersiapkan render video beresolusi tinggi...');
+      say('Mempersiapkan render presisi frame-by-frame...');
       video.pause();
-      video.playbackRate = 1.0;
-      if (video.currentTime > 0) { 
-        video.currentTime = 0; 
-        await once(video, 'seeked'); 
+      video.currentTime = 0;
+      await once(video, 'seeked');
+
+      const duration = video.duration;
+      if (!duration || isNaN(duration)) {
+        say('Durasi video tidak valid.');
+        recording = false;
+        $('removerRender').disabled = false;
+        return;
       }
-      
-      const stream = view.captureStream(30);
-      try { 
-        const audioStream = video.captureStream ? video.captureStream() : null;
-        if (audioStream && audioStream.getAudioTracks().length > 0) {
-          audioStream.getAudioTracks().forEach(t => stream.addTrack(t));
-        }
+
+      const fps = 30;
+      const totalFrames = Math.round(duration * fps);
+      const frameInterval = 1 / fps;
+
+      // Use captureStream(0) for manual frame pushing via requestFrame() to prevent frame dropping
+      const stream = view.captureStream(0);
+      const videoTrack = stream.getVideoTracks()[0];
+
+      // Capture audio cleanly using Web Audio API
+      let audioDestination = null;
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaElementSource(video);
+        audioDestination = audioCtx.createMediaStreamDestination();
+        source.connect(audioDestination);
+        source.connect(audioCtx.destination);
+        audioDestination.stream.getAudioTracks().forEach(t => stream.addTrack(t));
       } catch (err) {
-        console.warn('Audio capture stream warning:', err);
+        console.warn('Web Audio capture warning:', err);
+        try {
+          const vStream = video.captureStream();
+          vStream.getAudioTracks().forEach(t => stream.addTrack(t));
+        } catch(_) {}
       }
-      
+
       const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 25e6 });
       const chunks = [];
       
@@ -1041,36 +1061,53 @@ function initWtRemover() {
         recording = false; 
         $('removerRender').disabled = false; 
         dirty = true;
-        say('Render selesai! Silakan periksa hasil dan unduh.');
+        say('Render presisi selesai! Silakan periksa hasil dan unduh.');
       };
-      
-      video.onended = () => { 
-        video.onended = null; 
-        if (rec.state === 'recording') {
-          rec.stop(); 
-        }
-      };
+
+      rec.start();
+      say('Memulai rendering frame-by-frame (tanpa frame terlewat)...');
+
+      video.currentTime = 0;
+      video.playbackRate = 1.0;
 
       try {
-        rec.start(50);
         await video.play();
 
-        const checkProgress = () => {
+        let currentFrame = 0;
+        const renderLoop = async () => {
           if (!recording) return;
-          if (video.ended || video.paused || video.currentTime >= video.duration) {
+          if (video.ended || video.paused || currentFrame >= totalFrames || video.currentTime >= duration) {
+            video.pause();
             if (rec.state === 'recording') {
               rec.stop();
             }
             return;
           }
-          const pct = Math.round((video.currentTime / video.duration) * 100);
-          say(`Merender video... ${pct}% (${video.currentTime.toFixed(1)}s / ${video.duration.toFixed(1)}s)`);
-          requestAnimationFrame(checkProgress);
+
+          const targetTime = currentFrame * frameInterval;
+          if (Math.abs(video.currentTime - targetTime) > 0.03) {
+            video.currentTime = targetTime;
+          }
+
+          if (video.readyState >= video.HAVE_CURRENT_DATA) {
+            vctx.drawImage(video, 0, 0, W, H);
+            applyFx();
+            if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+              videoTrack.requestFrame();
+            }
+          }
+
+          currentFrame++;
+          const pct = Math.round((currentFrame / totalFrames) * 100);
+          say(`Rendering frame: ${pct}% (${currentFrame}/${totalFrames} frames)`);
+
+          requestAnimationFrame(renderLoop);
         };
-        requestAnimationFrame(checkProgress);
+
+        requestAnimationFrame(renderLoop);
 
       } catch (err) {
-        console.error('Gagal memulai render video:', err);
+        console.error('Gagal render presisi:', err);
         say('Gagal merender video: ' + err.message);
         recording = false;
         $('removerRender').disabled = false;
