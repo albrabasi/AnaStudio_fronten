@@ -991,25 +991,75 @@ function initWtRemover() {
       const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
       const mime = window.MediaRecorder && types.find(t => MediaRecorder.isTypeSupported(t));
       if (!mime) { say('Browser ini belum mendukung perekaman video. Gunakan Chrome atau Edge.'); return; }
-      recording = true; $('removerRender').disabled = true; if ($('removerOut')) $('removerOut').style.display = 'none';
+      
+      recording = true; 
+      $('removerRender').disabled = true; 
+      if ($('removerOut')) $('removerOut').style.display = 'none';
+      
       video.pause();
-      if (video.currentTime > 0) { video.currentTime = 0; await once(video, 'seeked'); }
+      video.playbackRate = 1.0;
+      if (video.currentTime > 0) { 
+        video.currentTime = 0; 
+        await once(video, 'seeked'); 
+      }
+      
       const stream = view.captureStream(30);
-      try { video.captureStream().getAudioTracks().forEach(t => stream.addTrack(t)); } catch (_) {}
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12e6 });
+      try { 
+        const audioStream = video.captureStream ? video.captureStream() : null;
+        if (audioStream && audioStream.getAudioTracks().length > 0) {
+          audioStream.getAudioTracks().forEach(t => stream.addTrack(t));
+        }
+      } catch (err) {
+        console.warn('Audio capture stream warning:', err);
+      }
+      
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 15e6 });
       const chunks = [];
-      rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+      
+      rec.ondataavailable = e => { 
+        if (e.data && e.data.size > 0) chunks.push(e.data); 
+      };
+      
       rec.onstop = () => {
         const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-        const url = URL.createObjectURL(new Blob(chunks, { type: mime.split(';')[0] }));
+        const filenameInput = $('removerFilename')?.value.trim();
+        const baseName = (filenameInput || 'AnaStudio_WatermarkRemoved').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const downloadName = `${baseName}.${ext}`;
+
+        const blob = new Blob(chunks, { type: mime.split(';')[0] });
+        const url = URL.createObjectURL(blob);
+        
         if ($('removerResult')) $('removerResult').src = url;
-        if ($('removerDl')) { $('removerDl').href = url; $('removerDl').download = 'video-bersih.' + ext; }
+        if ($('removerDl')) { 
+          $('removerDl').href = url; 
+          $('removerDl').download = downloadName; 
+          $('removerDl').textContent = `Unduh hasil (${downloadName})`;
+        }
         if ($('removerOut')) $('removerOut').style.display = 'grid';
-        recording = false; $('removerRender').disabled = false; dirty = true;
-        say('Selesai. Periksa hasilnya, lalu unduh.');
+        
+        recording = false; 
+        $('removerRender').disabled = false; 
+        dirty = true;
+        say('Render selesai! Silakan periksa hasil dan unduh.');
       };
-      video.onended = () => { video.onended = null; rec.stop(); };
-      rec.start(); await video.play();
+      
+      video.onended = () => { 
+        video.onended = null; 
+        if (rec.state === 'recording') {
+          rec.stop(); 
+        }
+      };
+
+      try {
+        rec.start(100);
+        await video.play();
+      } catch (err) {
+        console.error('Gagal memulai render video:', err);
+        say('Gagal merender video: ' + err.message);
+        recording = false;
+        $('removerRender').disabled = false;
+        try { rec.stop(); } catch(_) {}
+      }
     };
   }
 }
