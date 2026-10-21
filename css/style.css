@@ -797,6 +797,56 @@ body.director-modal-open {
   font-size: 14px;
   margin: 4px 0;
 }
+
+/* FIX kontrol video WtRemover */
+#wtRemoverPanel .remover-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  position: relative;
+  z-index: 10;
+}
+
+#wtRemoverPanel #removerPlay {
+  flex: 0 0 90px;
+  min-height: 40px;
+  padding: 8px 10px;
+  margin: 0;
+  border: 1px solid #14b8a6;
+  border-radius: 8px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#wtRemoverPanel #removerSeek {
+  display: block;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: #14b8a6;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+
+#wtRemoverPanel #removerTime {
+  flex: 0 0 auto;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .remover-panel input[type=checkbox] {
   width: auto;
   padding: 0;
