@@ -9,6 +9,8 @@
   <meta name="theme-color" content="#070b14">
   <link rel="icon" type="image/png" href="./public/icon-192.png">
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
 </head>
 <body>
 <div class="container">
@@ -29,6 +31,7 @@
       <button class="tab" data-tab="imagePanel">▧ Image</button>
       <button class="tab" data-tab="promptDirectorPanel">🎬 Director</button>
       <button class="tab" data-tab="wtRemoverPanel">🧹 Wt Remover</button>
+      <button class="tab" data-tab="videoConverterPanel">🔄 Converter</button>
     </nav>
 
     <main class="content">
@@ -420,6 +423,48 @@
         </div>
       </section>
 
+      <!-- VIDEO CONVERTER PANEL -->
+      <section id="videoConverterPanel" class="panel">
+        <div class="notice"><strong>Konverter MP4 H.265 (HEVC) ke H.264 + AAC</strong><br>Ubah video H.265 ke H.264 dengan audio AAC agar kompatibel di semua perangkat, pemutar video, dan platform media sosial. Diproses secara aman di browser.</div>
+        
+        <label for="videoConverterInput">File Video (MP4 / H.265)</label>
+        <div class="upload" id="videoConverterBox">
+          <div style="font-size:42px">🎞️＋</div>
+          <strong>Pilih atau Drag File Video</strong>
+          <small>MP4, MOV (disarankan < 50MB, durasi ~15 detik)</small>
+          <input id="videoConverterInput" type="file" accept="video/mp4,video/quicktime,video/*" hidden>
+        </div>
+
+        <div id="videoConverterInfo" style="margin:12px 0;font-size:14px;color:#94a3b8;display:none;"></div>
+        
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
+          <div style="flex:1;min-width:280px;">
+            <label>Video Asli (Pratinjau)</label>
+            <video id="videoConverterSourcePreview" controls playsinline style="width:100%;max-height:240px;border-radius:12px;background:#000;display:none;"></video>
+          </div>
+          <div style="flex:1;min-width:280px;">
+            <label>Video Hasil (H.264 + AAC)</label>
+            <video id="videoConverterResultPreview" controls playsinline style="width:100%;max-height:240px;border-radius:12px;background:#000;display:none;"></video>
+          </div>
+        </div>
+
+        <div id="ffmpegProgressContainer" style="display:none;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;">
+            <span id="ffmpegStatusText">Memproses konversi...</span>
+            <span id="ffmpegPercentText">0%</span>
+          </div>
+          <div style="background:#1e293b;border-radius:8px;height:10px;overflow:hidden;">
+            <div id="ffmpegProgressBar" style="background:#14b8a6;width:0%;height:100%;transition:width 0.2s;"></div>
+          </div>
+        </div>
+
+        <label for="videoOutputName">Nama File Hasil (tanpa ekstensi)</label>
+        <input id="videoOutputName" placeholder="AnaVideo_Converted" maxlength="80" value="AnaVideo_H264">
+
+        <button class="primary" id="startConvertButton" disabled>▶ Konversi ke H.264 + AAC</button>
+        <a class="download" id="videoConverterDownloadButton" style="display:none;margin-top:16px;">Download Video H.264 (.mp4)</a>
+      </section>
+
       <div id="status" class="status"></div>
       <audio id="audioPlayer" controls></audio>
       <a id="downloadButton" class="download" style="display:none">Download MP3</a>
@@ -453,6 +498,10 @@
   <button class="mobile-nav-item" data-tab="wtRemoverPanel">
     <span class="nav-icon">🧹</span>
     <span class="nav-label">Remover</span>
+  </button>
+  <button class="mobile-nav-item" data-tab="videoConverterPanel">
+    <span class="nav-icon">🔄</span>
+    <span class="nav-label">Converter</span>
   </button>
 </nav>
 
