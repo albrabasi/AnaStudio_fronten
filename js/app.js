@@ -837,53 +837,107 @@ $('removerFile').onchange = e => {
   say('Memuat video: ' + f.name);
 };
 
-video.onloadedmetadata = () => {
-  console.log(
-    'Video metadata berhasil dibaca:',
-    video.videoWidth,
-    video.videoHeight,
-    video.duration
-  );
 
-  say(
-    'Metadata terbaca: ' +
-    video.videoWidth + ' × ' + video.videoHeight +
-    '. Menyiapkan pratinjau…'
-  );
-};
-
-video.onerror = () => {
-  console.error('Kesalahan pemuatan video:', video.error);
-
-  say(
-    'Video gagal dimuat. Coba MP4 H.264 atau format yang didukung browser.'
-  );
-};
 
 video.onloadedmetadata = () => {
-  W = video.videoWidth; H = video.videoHeight;
-  for (const c of [view, mask, tint, tmp]) { c.width = W; c.height = H; }
+  W = video.videoWidth;
+  H = video.videoHeight;
+
+  if (!W || !H) {
+    say('Ukuran video tidak terbaca. Coba file video lain.');
+    return;
+  }
+
+  for (const c of [view, mask, tint, tmp]) {
+    c.width = W;
+    c.height = H;
+  }
+
   small.width = small2.width = Math.round(W / DOWN) + 2 * P;
   small.height = small2.height = Math.round(H / DOWN) + 2 * P;
-  $('removerWrap').style.maxWidth = Math.round(innerHeight * 0.78 * W / H) + 'px';
-  undoStack = []; dirty = true;
-  const saved = localStorage.getItem('anastudio_wt_mask_' + W + 'x' + H);
-  if (saved) { const im = new Image(); im.onload = () => { mctx.drawImage(im, 0, 0); dirty = true; say('Area tersimpan untuk ukuran ' + W + '×' + H + ' dimuat.'); }; im.src = saved; }
-  else say('Video ' + W + '×' + H + ' siap. Jeda di frame yang jelas, lalu brush area logo.');
-  video.currentTime = 0.05;
-  for (const id of ['play','seek','render']) $(id).disabled = false;
+
+  $('removerWrap').style.maxWidth =
+    Math.round(innerHeight * 0.78 * W / H) + 'px';
+
+  undoStack = [];
+  dirty = true;
+
+  const saved = localStorage.getItem(
+    'anastudio_wt_mask_' + W + 'x' + H
+  );
+
+  if (saved) {
+    const im = new Image();
+    im.onload = () => {
+      mctx.drawImage(im, 0, 0);
+      dirty = true;
+      say('Area tersimpan untuk ukuran ' + W + '×' + H + ' dimuat.');
+    };
+    im.src = saved;
+  } else {
+    say('Video ' + W + '×' + H +
+      ' siap. Jeda di frame yang jelas, lalu brush area logo.');
+  }
+
+  $('removerPlay').disabled = false;
+  $('removerSeek').disabled = false;
+  $('removerRender').disabled = false;
+
+  $('removerPlay').textContent = '▶ Putar';
+  $('removerSeek').value = '0';
+  $('removerTime').textContent =
+    '0:00 / ' + fmt(video.duration);
+
+  video.currentTime = 0;
 };
 
+
+
 video.ontimeupdate = () => {
-  if (!video.duration) return;
-  $('removerSeek').value = Math.round(video.currentTime / video.duration * 1000);
-  $('removerTime').textContent = fmt(video.currentTime) + ' / ' + fmt(video.duration);
-  if (recording) say('Merender… ' + Math.round(video.currentTime / video.duration * 100) + '% (biarkan tab ini tetap terbuka)');
+  if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+
+  $('removerSeek').value = String(
+    Math.round(video.currentTime / video.duration * 1000)
+  );
+
+  $('removerTime').textContent =
+    fmt(video.currentTime) + ' / ' + fmt(video.duration);
+
+  if (recording) {
+    say('Merender… ' +
+      Math.round(video.currentTime / video.duration * 100) +
+      '% (biarkan tab ini tetap terbuka)');
+  }
 };
-video.onplay = () => $('removerPlay').textContent = 'Jeda';
-video.onpause = () => $('removerPlay').textContent = 'Putar';
-$('removerPlay').onclick = () => video.paused ? video.play() : video.pause();
-$('removerSeek').oninput = e => { video.currentTime = e.target.value / 1000 * video.duration; };
+
+video.onplay = () => {
+  $('removerPlay').textContent = '❚❚ Jeda';
+};
+
+video.onpause = () => {
+  $('removerPlay').textContent = '▶ Putar';
+};
+
+$('removerPlay').onclick = async () => {
+  try {
+    if (video.paused) {
+      await video.play();
+    } else {
+      video.pause();
+    }
+  } catch (err) {
+    console.error('Gagal memutar video:', err);
+    say('Video gagal diputar. Coba pilih ulang file video.');
+  }
+};
+
+$('removerSeek').oninput = e => {
+  if (Number.isFinite(video.duration) && video.duration > 0) {
+    video.currentTime =
+      (Number(e.target.value) / 1000) * video.duration;
+  }
+};
+
 
 /* ---------- efek blur / kaca es di area mask ---------- */
 function applyFx() {
