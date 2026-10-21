@@ -785,3 +785,156 @@ $('resetDirectorButton')?.addEventListener('click', () => {
   closeDirectorModal();
   showStatus('Prompt Director telah di-reset ke mode FIGHTER.');
 });
+
+
+/* ==========================================
+   WT REMOVER — terintegrasi dengan panel AnaStudio
+   Pemrosesan lokal di browser; video tidak diunggah.
+   ========================================== */
+function initWtRemover() {
+  if (window.__anaWtRemoverInitialized) return;
+  window.__anaWtRemoverInitialized = true;
+  (() => {
+
+const $ = id => document.getElementById(id);
+const view = $('removerView'), vctx = view.getContext('2d');
+const video = document.createElement('video'); video.playsInline = true;
+const mk = () => { const c = document.createElement('canvas'); return [c, c.getContext('2d', { willReadFrequently: true })]; };
+const [mask, mctx] = mk(), [tint, tctx] = mk(), [small, sctx] = mk(), [small2, s2ctx] = mk(), [tmp, xctx] = mk();
+const P = 40, DOWN = 6; // margin tepi & faktor pengecilan untuk blur cepat
+let W = 0, H = 0, tool = 'brush', drawing = false, last = null, dirty = true, recording = false, undoStack = [];
+
+function fmt(t){ t = Math.max(0, t|0); return Math.floor(t/60) + ':' + String(t%60).padStart(2,'0'); }
+function say(t){ $('removerStatus').textContent = t; }
+
+$('removerFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  video.src = URL.createObjectURL(f);
+  say('Memuat video…');
+};
+
+video.onloadedmetadata = () => {
+  W = video.videoWidth; H = video.videoHeight;
+  for (const c of [view, mask, tint, tmp]) { c.width = W; c.height = H; }
+  small.width = small2.width = Math.round(W / DOWN) + 2 * P;
+  small.height = small2.height = Math.round(H / DOWN) + 2 * P;
+  $('removerWrap').style.maxWidth = Math.round(innerHeight * 0.78 * W / H) + 'px';
+  undoStack = []; dirty = true;
+  const saved = localStorage.getItem('anastudio_wt_mask_' + W + 'x' + H);
+  if (saved) { const im = new Image(); im.onload = () => { mctx.drawImage(im, 0, 0); dirty = true; say('Area tersimpan untuk ukuran ' + W + '×' + H + ' dimuat.'); }; im.src = saved; }
+  else say('Video ' + W + '×' + H + ' siap. Jeda di frame yang jelas, lalu brush area logo.');
+  video.currentTime = 0.05;
+  for (const id of ['play','seek','render']) $(id).disabled = false;
+};
+
+video.ontimeupdate = () => {
+  if (!video.duration) return;
+  $('removerSeek').value = Math.round(video.currentTime / video.duration * 1000);
+  $('removerTime').textContent = fmt(video.currentTime) + ' / ' + fmt(video.duration);
+  if (recording) say('Merender… ' + Math.round(video.currentTime / video.duration * 100) + '% (biarkan tab ini tetap terbuka)');
+};
+video.onplay = () => $('removerPlay').textContent = 'Jeda';
+video.onpause = () => $('removerPlay').textContent = 'Putar';
+$('removerPlay').onclick = () => video.paused ? video.play() : video.pause();
+$('removerSeek').oninput = e => { video.currentTime = e.target.value / 1000 * video.duration; };
+
+/* ---------- efek blur / kaca es di area mask ---------- */
+function applyFx() {
+  const vw = W, vh = H, sw = small.width - 2*P, sh = small.height - 2*P;
+  // salin tepi video ke margin supaya blur di pinggir layar tetap penuh
+  sctx.drawImage(video, P, P, sw, sh);
+  sctx.drawImage(video, 0, 0, 1, vh, 0, P, P, sh);
+  sctx.drawImage(video, vw-1, 0, 1, vh, P+sw, P, P, sh);
+  sctx.drawImage(video, 0, 0, vw, 1, P, 0, sw, P);
+  sctx.drawImage(video, 0, vh-1, vw, 1, P, P+sh, sw, P);
+  s2ctx.filter = 'blur(' + (+$('removerBlur').value / DOWN) + 'px)';
+  s2ctx.clearRect(0, 0, small2.width, small2.height);
+  s2ctx.drawImage(small, 0, 0);
+  s2ctx.filter = 'none';
+  xctx.globalCompositeOperation = 'copy';
+  xctx.imageSmoothingQuality = 'high';
+  xctx.drawImage(small2, P, P, sw, sh, 0, 0, W, H);
+  if ($('removerStyle').value === 'frost') {
+    xctx.globalCompositeOperation = 'source-over';
+    xctx.fillStyle = 'rgba(255,255,255,.14)';
+    xctx.fillRect(0, 0, W, H);
+  }
+  xctx.globalCompositeOperation = 'destination-in';
+  xctx.drawImage(mask, 0, 0);
+  xctx.globalCompositeOperation = 'source-over';
+  vctx.drawImage(tmp, 0, 0);
+}
+
+function drawTint() {
+  if (dirty) {
+    tctx.globalCompositeOperation = 'copy'; tctx.drawImage(mask, 0, 0);
+    tctx.globalCompositeOperation = 'source-in'; tctx.fillStyle = 'rgba(255,40,70,.55)'; tctx.fillRect(0, 0, W, H);
+    tctx.globalCompositeOperation = 'source-over'; dirty = false;
+  }
+  vctx.drawImage(tint, 0, 0);
+}
+
+function frame() {
+  if (W) {
+    vctx.drawImage(video, 0, 0, W, H);
+    if ($('removerFx').checked || recording) applyFx();
+    if (!recording && $('removerShowMask').checked) drawTint();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- brush ---------- */
+const pos = e => { const r = view.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; };
+function stroke(a, b) {
+  const s = +$('removerSize').value;
+  mctx.globalCompositeOperation = tool === 'brush' ? 'source-over' : 'destination-out';
+  mctx.strokeStyle = '#fff'; mctx.shadowColor = '#fff'; mctx.shadowBlur = s * 0.3;
+  mctx.lineWidth = s; mctx.lineCap = 'round'; mctx.lineJoin = 'round';
+  mctx.beginPath(); mctx.moveTo(a.x, a.y); mctx.lineTo(b.x + 0.01, b.y); mctx.stroke();
+  mctx.shadowBlur = 0; dirty = true;
+}
+function pushUndo() { undoStack.push(mctx.getImageData(0, 0, W, H)); if (undoStack.length > 8) undoStack.shift(); }
+view.addEventListener('pointerdown', e => {
+  if (!W || recording) return;
+  view.setPointerCapture(e.pointerId); pushUndo(); drawing = true; last = pos(e); stroke(last, last);
+});
+view.addEventListener('pointermove', e => { if (drawing) { const p = pos(e); stroke(last, p); last = p; } });
+for (const ev of ['pointerup', 'pointercancel']) view.addEventListener(ev, () => drawing = false);
+
+$('removerTBrush').onclick = () => { tool = 'brush'; $('removerTBrush').classList.add('on'); $('removerTErase').classList.remove('on'); };
+$('removerTErase').onclick = () => { tool = 'erase'; $('removerTErase').classList.add('on'); $('removerTBrush').classList.remove('on'); };
+$('removerUndo').onclick = () => { const d = undoStack.pop(); if (d) { mctx.putImageData(d, 0, 0); dirty = true; } };
+$('removerClear').onclick = () => { if (!W) return; pushUndo(); mctx.clearRect(0, 0, W, H); dirty = true; };
+$('removerSave').onclick = () => { if (!W) return; localStorage.setItem('anastudio_wt_mask_' + W + 'x' + H, mask.toDataURL()); say('Area disimpan. Akan dimuat otomatis untuk video ' + W + '×' + H + '.'); };
+
+/* ---------- render (rekam kanvas secara real-time) ---------- */
+const once = (el, ev) => new Promise(r => el.addEventListener(ev, r, { once: true }));
+$('removerRender').onclick = async () => {
+  if (!W || recording) return;
+  const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
+  const mime = window.MediaRecorder && types.find(t => MediaRecorder.isTypeSupported(t));
+  if (!mime) { say('Browser ini belum mendukung perekaman video. Gunakan Chrome atau Edge.'); return; }
+  recording = true; $('removerRender').disabled = true; $('removerOut').style.display = 'none';
+  video.pause();
+  if (video.currentTime > 0) { video.currentTime = 0; await once(video, 'seeked'); }
+  const stream = view.captureStream(30);
+  try { video.captureStream().getAudioTracks().forEach(t => stream.addTrack(t)); } catch (_) {}
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12e6 });
+  const chunks = [];
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.onstop = () => {
+    const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+    const url = URL.createObjectURL(new Blob(chunks, { type: mime.split(';')[0] }));
+    $('removerResult').src = url; $('removerDl').href = url; $('removerDl').download = 'video-bersih.' + ext;
+    $('removerOut').style.display = 'grid';
+    recording = false; $('removerRender').disabled = false; dirty = true;
+    say('Selesai. Periksa hasilnya, lalu unduh.');
+  };
+  video.onended = () => { video.onended = null; rec.stop(); };
+  rec.start(); await video.play();
+};
+
+  })();
+}
+
