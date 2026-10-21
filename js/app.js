@@ -1020,6 +1020,46 @@ function initWtRemover() {
 let ffmpegInstance = null;
 let converterFile = null;
 
+function setupVideoController(videoEl, playBtn, seekEl, timeEl, placeholderEl, controlBarEl) {
+  if (!videoEl || !playBtn || !seekEl) return;
+
+  function fmt(t) { t = Math.max(0, t|0); return Math.floor(t/60) + ':' + String(t%60).padStart(2,'0'); }
+
+  videoEl.onloadedmetadata = () => {
+    if (placeholderEl) placeholderEl.style.display = 'none';
+    videoEl.style.display = 'block';
+    if (controlBarEl) controlBarEl.style.display = 'flex';
+    playBtn.disabled = false;
+    seekEl.disabled = false;
+    if (timeEl) timeEl.textContent = '0:00 / ' + fmt(videoEl.duration);
+    videoEl.currentTime = 0;
+  };
+
+  videoEl.ontimeupdate = () => {
+    if (!Number.isFinite(videoEl.duration) || videoEl.duration <= 0) return;
+    seekEl.value = String(Math.round(videoEl.currentTime / videoEl.duration * 1000));
+    if (timeEl) timeEl.textContent = fmt(videoEl.currentTime) + ' / ' + fmt(videoEl.duration);
+  };
+
+  videoEl.onplay = () => { playBtn.textContent = '❚❚ Jeda'; };
+  videoEl.onpause = () => { playBtn.textContent = '▶ Putar'; };
+  videoEl.onended = () => { playBtn.textContent = '▶ Putar'; };
+
+  playBtn.onclick = async () => {
+    try {
+      if (videoEl.paused) { await videoEl.play(); } else { videoEl.pause(); }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  seekEl.oninput = e => {
+    if (Number.isFinite(videoEl.duration) && videoEl.duration > 0) {
+      videoEl.currentTime = (Number(e.target.value) / 1000) * videoEl.duration;
+    }
+  };
+}
+
 function initVideoConverter() {
   const panel = $('videoConverterPanel');
   if (!panel || panel.dataset.initialized === 'true') return;
@@ -1032,6 +1072,24 @@ function initVideoConverter() {
   const convertBtn = $('startConvertButton');
   const downloadBtn = $('videoConverterDownloadButton');
   const infoDiv = $('videoConverterInfo');
+
+  setupVideoController(
+    sourcePreview,
+    $('sourcePlayBtn'),
+    $('sourceSeek'),
+    $('sourceTime'),
+    $('sourcePlaceholder'),
+    $('sourceControlBar')
+  );
+
+  setupVideoController(
+    resultPreview,
+    $('resultPlayBtn'),
+    $('resultSeek'),
+    $('resultTime'),
+    $('resultPlaceholder'),
+    $('resultControlBar')
+  );
 
   if (uploadBox && fileInput) {
     uploadBox.onclick = () => fileInput.click();
@@ -1046,9 +1104,15 @@ function initVideoConverter() {
       const url = URL.createObjectURL(file);
       if (sourcePreview) {
         sourcePreview.src = url;
-        sourcePreview.style.display = 'block';
+        sourcePreview.load();
       }
-      if (resultPreview) resultPreview.style.display = 'none';
+      if (resultPreview) {
+        resultPreview.removeAttribute('src');
+        resultPreview.load();
+        resultPreview.style.display = 'none';
+        if ($('resultPlaceholder')) $('resultPlaceholder').style.display = 'block';
+        if ($('resultControlBar')) $('resultControlBar').style.display = 'none';
+      }
       if (downloadBtn) downloadBtn.style.display = 'none';
       if (convertBtn) convertBtn.disabled = false;
 
@@ -1124,7 +1188,7 @@ function initVideoConverter() {
 
         if (resultPreview) {
           resultPreview.src = resultUrl;
-          resultPreview.style.display = 'block';
+          resultPreview.load();
         }
 
         const customName = ($('videoOutputName')?.value.trim() || 'AnaVideo_H264').replace(/[^a-zA-Z0-9_-]/g, '_');
