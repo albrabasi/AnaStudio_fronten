@@ -983,7 +983,7 @@ function initWtRemover() {
   if ($('removerClear')) $('removerClear').onclick = () => { if (!W) return; pushUndo(); mctx.clearRect(0, 0, W, H); dirty = true; };
   if ($('removerSave')) $('removerSave').onclick = () => { if (!W) return; localStorage.setItem('anastudio_wt_mask_' + W + 'x' + H, mask.toDataURL()); say('Area disimpan. Akan dimuat otomatis untuk video ' + W + '×' + H + '.'); };
 
-  /* ---------- render (Precision Frame Capture with 1x Speed & requestFrame) ---------- */
+  /* ---------- render (Precision Frame Capture with requestVideoFrameCallback) ---------- */
   const once = (el, ev) => new Promise(r => el.addEventListener(ev, r, { once: true }));
   if ($('removerRender')) {
     $('removerRender').onclick = async () => {
@@ -996,7 +996,7 @@ function initWtRemover() {
       $('removerRender').disabled = true; 
       if ($('removerOut')) $('removerOut').style.display = 'none';
       
-      say('Mempersiapkan render presisi...');
+      say('Mempersiapkan render presisi tinggi...');
       video.pause();
       video.currentTime = 0;
       await once(video, 'seeked');
@@ -1072,7 +1072,7 @@ function initWtRemover() {
         video.playbackRate = 1.0;
         await video.play();
 
-        const renderLoop = () => {
+        const onFrame = (now, metadata) => {
           if (!recording) return;
           if (video.ended || video.paused || video.currentTime >= duration) {
             video.pause();
@@ -1091,12 +1091,20 @@ function initWtRemover() {
           }
 
           const pct = Math.round((video.currentTime / duration) * 100);
-          say(`Merender video... ${pct}% (${video.currentTime.toFixed(1)}s / ${duration.toFixed(1)}s)`);
+          say(`Merender video (Presisi Frame)... ${pct}% (${video.currentTime.toFixed(1)}s / ${duration.toFixed(1)}s)`);
 
-          requestAnimationFrame(renderLoop);
+          if (typeof video.requestVideoFrameCallback === 'function') {
+            video.requestVideoFrameCallback(onFrame);
+          } else {
+            requestAnimationFrame(onFrame);
+          }
         };
 
-        requestAnimationFrame(renderLoop);
+        if (typeof video.requestVideoFrameCallback === 'function') {
+          video.requestVideoFrameCallback(onFrame);
+        } else {
+          requestAnimationFrame(onFrame);
+        }
 
       } catch (err) {
         console.error('Gagal memulai render video:', err);
