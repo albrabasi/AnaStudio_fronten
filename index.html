@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AnaStudio Pro - AI Multimedia & Prompt Studio</title>
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./css/style.css?v=20261021-wt1">
+  <link rel="stylesheet" href="./css/style.css?v=20261021-wt2">
   <meta name="theme-color" content="#070b14">
   <link rel="icon" type="image/png" href="./public/icon-192.png">
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
@@ -437,14 +437,33 @@
 
         <div id="videoConverterInfo" style="margin:12px 0;font-size:14px;color:#94a3b8;display:none;"></div>
         
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
-          <div style="flex:1;min-width:280px;">
-            <label>Video Asli (Pratinjau)</label>
-            <video id="videoConverterSourcePreview" controls playsinline style="width:100%;max-height:240px;border-radius:12px;background:#000;display:none;"></video>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;">
+          <!-- Source Video Preview -->
+          <div style="flex:1;min-width:280px;background:#0b0f19;padding:16px;border-radius:16px;border:1px solid #1e293b;">
+            <label style="margin-bottom:10px;">Video Asli (H.265)</label>
+            <div style="position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:12px;display:flex;justify-content:center;align-items:center;min-height:180px;">
+              <video id="videoConverterSourcePreview" playsinline style="width:100%;max-height:240px;object-fit:contain;display:none;"></video>
+              <div id="sourcePlaceholder" style="color:#64748b;font-size:14px;">Belum ada video dipilih</div>
+            </div>
+            <div class="remover-bar" id="sourceControlBar" style="display:none;">
+              <button type="button" id="sourcePlayBtn" disabled>▶ Putar</button>
+              <input type="range" id="sourceSeek" min="0" max="1000" value="0" disabled aria-label="Posisi video asli">
+              <span id="sourceTime" style="font-size:12px;color:#94a3b8;min-width:45px;text-align:right;">0:00</span>
+            </div>
           </div>
-          <div style="flex:1;min-width:280px;">
-            <label>Video Hasil (H.264 + AAC)</label>
-            <video id="videoConverterResultPreview" controls playsinline style="width:100%;max-height:240px;border-radius:12px;background:#000;display:none;"></video>
+
+          <!-- Result Video Preview -->
+          <div style="flex:1;min-width:280px;background:#0b0f19;padding:16px;border-radius:16px;border:1px solid #1e293b;">
+            <label style="margin-bottom:10px;">Video Hasil (H.264 + AAC)</label>
+            <div style="position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:12px;display:flex;justify-content:center;align-items:center;min-height:180px;">
+              <video id="videoConverterResultPreview" playsinline style="width:100%;max-height:240px;object-fit:contain;display:none;"></video>
+              <div id="resultPlaceholder" style="color:#64748b;font-size:14px;">Belum dikonversi</div>
+            </div>
+            <div class="remover-bar" id="resultControlBar" style="display:none;">
+              <button type="button" id="resultPlayBtn" disabled>▶ Putar</button>
+              <input type="range" id="resultSeek" min="0" max="1000" value="0" disabled aria-label="Posisi video hasil">
+              <span id="resultTime" style="font-size:12px;color:#94a3b8;min-width:45px;text-align:right;">0:00</span>
+            </div>
           </div>
         </div>
 
@@ -505,6 +524,6 @@
   </button>
 </nav>
 
-<script src="./js/app.js?v=20261021-wt1"></script>
+<script src="./js/app.js?v=20261021-wt2"></script>
 </body>
 </html>
