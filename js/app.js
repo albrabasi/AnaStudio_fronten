@@ -47,6 +47,9 @@ document.querySelectorAll('.tab, .mobile-nav-item').forEach(btn => btn.addEventL
   if (targetTab === 'wtRemoverPanel') {
     initWtRemover();
   }
+  if (targetTab === 'videoConverterPanel') {
+    initVideoConverter();
+  }
   showStatus('');
 }));
 
@@ -1007,6 +1010,138 @@ function initWtRemover() {
       };
       video.onended = () => { video.onended = null; rec.stop(); };
       rec.start(); await video.play();
+    };
+  }
+}
+
+/* ==========================================
+   VIDEO CONVERTER (H.265 to H.264 + AAC)
+   ========================================== */
+let ffmpegInstance = null;
+let converterFile = null;
+
+function initVideoConverter() {
+  const panel = $('videoConverterPanel');
+  if (!panel || panel.dataset.initialized === 'true') return;
+  panel.dataset.initialized = 'true';
+
+  const uploadBox = $('videoConverterBox');
+  const fileInput = $('videoConverterInput');
+  const sourcePreview = $('videoConverterSourcePreview');
+  const resultPreview = $('videoConverterResultPreview');
+  const convertBtn = $('startConvertButton');
+  const downloadBtn = $('videoConverterDownloadButton');
+  const infoDiv = $('videoConverterInfo');
+
+  if (uploadBox && fileInput) {
+    uploadBox.onclick = () => fileInput.click();
+    fileInput.onchange = e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('video/')) {
+        showStatus('File yang dipilih bukan video.');
+        return;
+      }
+      converterFile = file;
+      const url = URL.createObjectURL(file);
+      if (sourcePreview) {
+        sourcePreview.src = url;
+        sourcePreview.style.display = 'block';
+      }
+      if (resultPreview) resultPreview.style.display = 'none';
+      if (downloadBtn) downloadBtn.style.display = 'none';
+      if (convertBtn) convertBtn.disabled = false;
+
+      if (infoDiv) {
+        infoDiv.style.display = 'block';
+        infoDiv.textContent = `File dipilih: ${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB)`;
+      }
+      showStatus('Video siap dikonversi ke H.264 + AAC.');
+    };
+  }
+
+  if (convertBtn) {
+    convertBtn.onclick = async () => {
+      if (!converterFile) return showStatus('Pilih file video terlebih dahulu.');
+      
+      setBusy(convertBtn, true, '▶ Konversi ke H.264 + AAC');
+      showStatus('Memuat FFmpeg.wasm (pertama kali mungkin butuh beberapa detik)...');
+      
+      const progressContainer = $('ffmpegProgressContainer');
+      const progressBar = $('ffmpegProgressBar');
+      const progressText = $('ffmpegPercentText');
+      const statusText = $('ffmpegStatusText');
+      if (progressContainer) progressContainer.style.display = 'block';
+
+      try {
+        if (!ffmpegInstance) {
+          if (!window.FFmpegWASM || !window.FFmpegUtil) {
+            throw new Error('Pustaka FFmpeg.wasm belum termuat dengan benar. Periksa koneksi internet.');
+          }
+          const { FFmpeg } = window.FFmpegWASM;
+          ffmpegInstance = new FFmpeg();
+          
+          ffmpegInstance.on('log', ({ message }) => {
+            console.log('[FFmpeg]', message);
+          });
+
+          ffmpegInstance.on('progress', ({ progress }) => {
+            const pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
+            if (progressBar) progressBar.style.width = pct + '%';
+            if (progressText) progressText.textContent = pct + '%';
+            if (statusText) statusText.textContent = `Sedang mengonversi video... (${pct}%)`;
+          });
+
+          const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+          await ffmpegInstance.load({
+            coreURL: await window.FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await window.FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          });
+        }
+
+        showStatus('Menulis file video ke memori virtual...');
+        const { fetchFile } = window.FFmpegUtil;
+        const inputName = 'input_video.mp4';
+        const outputName = 'output_video.mp4';
+
+        await ffmpegInstance.writeFile(inputName, await fetchFile(converterFile));
+
+        showStatus('Menjalankan transcode (H.265 ➔ H.264 + AAC)...');
+        await ffmpegInstance.exec([
+          '-i', inputName,
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-crf', '23',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          outputName
+        ]);
+
+        showStatus('Membaca file hasil konversi...');
+        const data = await ffmpegInstance.readFile(outputName);
+        const blob = new Blob([data.buffer], { type: 'video/mp4' });
+        const resultUrl = URL.createObjectURL(blob);
+
+        if (resultPreview) {
+          resultPreview.src = resultUrl;
+          resultPreview.style.display = 'block';
+        }
+
+        const customName = ($('videoOutputName')?.value.trim() || 'AnaVideo_H264').replace(/[^a-zA-Z0-9_-]/g, '_');
+        if (downloadBtn) {
+          downloadBtn.href = resultUrl;
+          downloadBtn.download = `${customName}.mp4`;
+          downloadBtn.style.display = 'block';
+          downloadBtn.textContent = `Download Video ${customName}.mp4 (${(blob.size / (1024*1024)).toFixed(2)} MB)`;
+        }
+
+        showStatus('Konversi H.265 ke H.264 + AAC berhasil!');
+      } catch (e) {
+        console.error(e);
+        showStatus('Gagal konversi video: ' + (e.message || e));
+      } finally {
+        setBusy(convertBtn, false, '▶ Konversi ke H.264 + AAC');
+      }
     };
   }
 }
