@@ -988,7 +988,7 @@ function initWtRemover() {
   if ($('removerRender')) {
     $('removerRender').onclick = async () => {
       if (!W || recording) return;
-      const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
+      const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
       const mime = window.MediaRecorder && types.find(t => MediaRecorder.isTypeSupported(t));
       if (!mime) { say('Browser ini belum mendukung perekaman video. Gunakan Chrome atau Edge.'); return; }
       
@@ -996,6 +996,7 @@ function initWtRemover() {
       $('removerRender').disabled = true; 
       if ($('removerOut')) $('removerOut').style.display = 'none';
       
+      say('Mempersiapkan render video beresolusi tinggi...');
       video.pause();
       video.playbackRate = 1.0;
       if (video.currentTime > 0) { 
@@ -1013,7 +1014,7 @@ function initWtRemover() {
         console.warn('Audio capture stream warning:', err);
       }
       
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 15e6 });
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 25e6 });
       const chunks = [];
       
       rec.ondataavailable = e => { 
@@ -1051,8 +1052,23 @@ function initWtRemover() {
       };
 
       try {
-        rec.start(100);
+        rec.start(50);
         await video.play();
+
+        const checkProgress = () => {
+          if (!recording) return;
+          if (video.ended || video.paused || video.currentTime >= video.duration) {
+            if (rec.state === 'recording') {
+              rec.stop();
+            }
+            return;
+          }
+          const pct = Math.round((video.currentTime / video.duration) * 100);
+          say(`Merender video... ${pct}% (${video.currentTime.toFixed(1)}s / ${video.duration.toFixed(1)}s)`);
+          requestAnimationFrame(checkProgress);
+        };
+        requestAnimationFrame(checkProgress);
+
       } catch (err) {
         console.error('Gagal memulai render video:', err);
         say('Gagal merender video: ' + err.message);
