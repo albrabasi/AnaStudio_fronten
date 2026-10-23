@@ -980,197 +980,133 @@ function initWtRemover() {
 }
 
 /* ==========================================
-   VIDEO CONVERTER (H.265 to H.264 + AAC)
+   VIDEO CONVERTER — terintegrasi dengan server lokal (berdasarkan konverter-h265-ke-h264.html)
    ========================================== */
-let ffmpegInstance = null;
-let converterFile = null;
-
-function setupVideoController(videoEl, playBtn, seekEl, timeEl, placeholderEl, controlBarEl) {
-  if (!videoEl || !playBtn || !seekEl) return;
-
-  function fmt(t) { t = Math.max(0, t|0); return Math.floor(t/60) + ':' + String(t%60).padStart(2,'0'); }
-
-  videoEl.onloadedmetadata = () => {
-    if (placeholderEl) placeholderEl.style.display = 'none';
-    videoEl.style.display = 'block';
-    if (controlBarEl) controlBarEl.style.display = 'flex';
-    playBtn.disabled = false;
-    seekEl.disabled = false;
-    if (timeEl) timeEl.textContent = '0:00 / ' + fmt(videoEl.duration);
-    videoEl.currentTime = 0;
-  };
-
-  videoEl.ontimeupdate = () => {
-    if (!Number.isFinite(videoEl.duration) || videoEl.duration <= 0) return;
-    seekEl.value = String(Math.round(videoEl.currentTime / videoEl.duration * 1000));
-    if (timeEl) timeEl.textContent = fmt(videoEl.currentTime) + ' / ' + fmt(videoEl.duration);
-  };
-
-  videoEl.onplay = () => { playBtn.textContent = '❚❚ Jeda'; };
-  videoEl.onpause = () => { playBtn.textContent = '▶ Putar'; };
-  videoEl.onended = () => { playBtn.textContent = '▶ Putar'; };
-
-  playBtn.onclick = async () => {
-    try {
-      if (videoEl.paused) { await videoEl.play(); } else { videoEl.pause(); }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  seekEl.oninput = e => {
-    if (Number.isFinite(videoEl.duration) && videoEl.duration > 0) {
-      videoEl.currentTime = (Number(e.target.value) / 1000) * videoEl.duration;
-    }
-  };
-}
-
 function initVideoConverter() {
   const panel = $('videoConverterPanel');
   if (!panel || panel.dataset.initialized === 'true') return;
   panel.dataset.initialized = 'true';
 
-  const uploadBox = $('videoConverterBox');
-  const fileInput = $('videoConverterInput');
-  const sourcePreview = $('videoConverterSourcePreview');
-  const resultPreview = $('videoConverterResultPreview');
-  const convertBtn = $('startConvertButton');
-  const downloadBtn = $('videoConverterDownloadButton');
-  const infoDiv = $('videoConverterInfo');
+  const API = 'http://localhost:8765';
+  let file = null, poll = null, t0 = 0;
 
-  setupVideoController(
-    sourcePreview,
-    $('sourcePlayBtn'),
-    $('sourceSeek'),
-    $('sourceTime'),
-    $('sourcePlaceholder'),
-    $('sourceControlBar')
-  );
+  function fmt(s) { return Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0'); }
+  function pick(f) {
+    if (!f) return;
+    file = f;
+    const info = $('convInfo');
+    if (info) info.textContent = f.name + ' - ' + (f.size/1048576).toFixed(1) + ' MB';
+    const go = $('convGo');
+    if (go) go.disabled = false;
+    const out = $('convOut');
+    if (out) out.hidden = true;
+    const log = $('convLog');
+    if (log) log.textContent = '';
+  }
 
-  setupVideoController(
-    resultPreview,
-    $('resultPlayBtn'),
-    $('resultSeek'),
-    $('resultTime'),
-    $('resultPlaceholder'),
-    $('resultControlBar')
-  );
+  const fInput = $('convF');
+  if (fInput) {
+    fInput.onchange = function(e) { pick(e.target.files[0]); };
+  }
 
-  if (uploadBox && fileInput) {
-    uploadBox.onclick = () => fileInput.click();
-    fileInput.onchange = e => {
-      const file = e.target.files?.[0];
+  const dropZone = $('convDrop');
+  if (dropZone) {
+    ['dragenter','dragover'].forEach(function(ev){ dropZone.addEventListener(ev, function(e){ e.preventDefault(); dropZone.classList.add('on'); }); });
+    ['dragleave','drop'].forEach(function(ev){ dropZone.addEventListener(ev, function(e){ e.preventDefault(); dropZone.classList.remove('on'); }); });
+    dropZone.addEventListener('drop', function(e){ pick(e.dataTransfer.files[0]); });
+  }
+
+  function finish() {
+    clearInterval(poll);
+    const go = $('convGo'); if (go) go.disabled = false;
+    const stop = $('convStop'); if (stop) stop.hidden = true;
+  }
+
+  function check() {
+    fetch(API+'/status').then(function(r){return r.json()}).then(function(s){
+      const el = (Date.now()-t0)/1000;
+      let txt;
+      const pBar = $('convP');
+      const logDiv = $('convLog');
+      if (s.state==='running'){
+        if (s.dur>0){
+          const pct = Math.min(99, s.sec/s.dur*100);
+          if (pBar) { pBar.value = pct; pBar.hidden = false; }
+          txt = 'Mengonversi... '+Math.round(pct)+'% - video '+fmt(s.sec)+' / '+fmt(s.dur);
+          if (s.sec>0.5) txt += ' - sisa sekitar '+fmt(el*(s.dur-s.sec)/s.sec);
+        } else {
+          if (pBar) pBar.removeAttribute('value');
+          txt = 'Mengonversi...';
+        }
+        if (logDiv) logDiv.textContent = txt + ' - berjalan ' + fmt(el);
+      } else if (s.state==='done'){
+        finish();
+        if (pBar) pBar.value = 100;
+        if (logDiv) logDiv.textContent = 'Selesai. Ukuran hasil: '+(s.size/1048576).toFixed(1)+' MB';
+        const vEl = $('convV');
+        if (vEl) { vEl.src = API+'/video?'+Date.now(); }
+        const outDiv = $('convOut');
+        if (outDiv) outDiv.hidden = false;
+      } else if (s.state==='error'){
+        finish();
+        if (pBar) pBar.hidden = true;
+        if (logDiv) logDiv.textContent = 'Gagal:\n'+s.msg;
+      }
+    }).catch(function(){});
+  }
+
+  const goBtn = $('convGo');
+  if (goBtn) {
+    goBtn.onclick = function(){
       if (!file) return;
-      if (!file.type.startsWith('video/')) {
-        showStatus('File yang dipilih bukan video.');
-        return;
-      }
-      converterFile = file;
-      const url = URL.createObjectURL(file);
-      if (sourcePreview) {
-        sourcePreview.src = url;
-        sourcePreview.load();
-      }
-      if (resultPreview) {
-        resultPreview.removeAttribute('src');
-        resultPreview.load();
-        resultPreview.style.display = 'none';
-        if ($('resultPlaceholder')) $('resultPlaceholder').style.display = 'block';
-        if ($('resultControlBar')) $('resultControlBar').style.display = 'none';
-      }
-      if (downloadBtn) downloadBtn.style.display = 'none';
-      if (convertBtn) convertBtn.disabled = false;
+      goBtn.disabled = true;
+      const outDiv = $('convOut'); if (outDiv) outDiv.hidden = true;
+      const pBar = $('convP'); if (pBar) { pBar.hidden = false; pBar.removeAttribute('value'); }
+      const logDiv = $('convLog');
 
-      if (infoDiv) {
-        infoDiv.style.display = 'block';
-        infoDiv.textContent = `File dipilih: ${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB)`;
-      }
-      showStatus('Video siap dikonversi ke H.264 + AAC.');
+      const x = new XMLHttpRequest();
+      const resSel = $('convRes');
+      const crfSel = $('convCrf');
+      const resVal = resSel ? resSel.value : '720';
+      const crfVal = crfSel ? crfSel.value : '24';
+
+      x.open('POST', API+'/upload?name='+encodeURIComponent(file.name)+'&res='+resVal+'&crf='+crfVal);
+      x.upload.onprogress = function(e){
+        if (e.lengthComputable && logDiv) logDiv.textContent = 'Menyiapkan file... '+Math.round(e.loaded/e.total*100)+'%';
+      };
+      x.onload = function(){
+        if (x.status!==200){
+          finish();
+          if (pBar) pBar.hidden = true;
+          if (logDiv) logDiv.textContent = 'Gagal: '+x.responseText;
+          return;
+        }
+        t0 = Date.now();
+        const stopBtn = $('convStop'); if (stopBtn) stopBtn.hidden = false;
+        clearInterval(poll);
+        poll = setInterval(check, 500);
+        check();
+      };
+      x.onerror = function(){
+        finish();
+        if (pBar) pBar.hidden = true;
+        if (logDiv) logDiv.textContent = 'Gagal menghubungi server lokal. Pastikan jalankan-konverter.bat sudah dijalankan dan jendela PowerShell terbuka (http://localhost:8765/).';
+      };
+      x.send(file);
     };
   }
 
-  if (convertBtn) {
-    convertBtn.onclick = async () => {
-      if (!converterFile) return showStatus('Pilih file video terlebih dahulu.');
-      
-      setBusy(convertBtn, true, '▶ Konversi ke H.264 + AAC');
-      showStatus('Memuat FFmpeg.wasm (pertama kali mungkin butuh beberapa detik)...');
-      
-      const progressContainer = $('ffmpegProgressContainer');
-      const progressBar = $('ffmpegProgressBar');
-      const progressText = $('ffmpegPercentText');
-      const statusText = $('ffmpegStatusText');
-      if (progressContainer) progressContainer.style.display = 'block';
-
-      try {
-        if (!ffmpegInstance) {
-          if (!window.FFmpegWASM || !window.FFmpegUtil) {
-            throw new Error('Pustaka FFmpeg.wasm belum termuat dengan benar. Periksa koneksi internet.');
-          }
-          const { FFmpeg } = window.FFmpegWASM;
-          ffmpegInstance = new FFmpeg();
-          
-          ffmpegInstance.on('log', ({ message }) => {
-            console.log('[FFmpeg]', message);
-          });
-
-          ffmpegInstance.on('progress', ({ progress }) => {
-            const pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
-            if (progressBar) progressBar.style.width = pct + '%';
-            if (progressText) progressText.textContent = pct + '%';
-            if (statusText) statusText.textContent = `Sedang mengonversi video... (${pct}%)`;
-          });
-
-          const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-          await ffmpegInstance.load({
-            coreURL: await window.FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-            wasmURL: await window.FFmpegUtil.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          });
-        }
-
-        showStatus('Menulis file video ke memori virtual...');
-        const { fetchFile } = window.FFmpegUtil;
-        const inputName = 'input_video.mp4';
-        const outputName = 'output_video.mp4';
-
-        await ffmpegInstance.writeFile(inputName, await fetchFile(converterFile));
-
-        showStatus('Menjalankan transcode (H.265 ➔ H.264 + AAC)...');
-        await ffmpegInstance.exec([
-          '-i', inputName,
-          '-c:v', 'libx264',
-          '-preset', 'ultrafast',
-          '-crf', '23',
-          '-c:a', 'aac',
-          '-b:a', '128k',
-          outputName
-        ]);
-
-        showStatus('Membaca file hasil konversi...');
-        const data = await ffmpegInstance.readFile(outputName);
-        const blob = new Blob([data.buffer], { type: 'video/mp4' });
-        const resultUrl = URL.createObjectURL(blob);
-
-        if (resultPreview) {
-          resultPreview.src = resultUrl;
-          resultPreview.load();
-        }
-
-        const customName = ($('videoOutputName')?.value.trim() || 'AnaVideo_H264').replace(/[^a-zA-Z0-9_-]/g, '_');
-        if (downloadBtn) {
-          downloadBtn.href = resultUrl;
-          downloadBtn.download = `${customName}.mp4`;
-          downloadBtn.style.display = 'block';
-          downloadBtn.textContent = `Download Video ${customName}.mp4 (${(blob.size / (1024*1024)).toFixed(2)} MB)`;
-        }
-
-        showStatus('Konversi H.265 ke H.264 + AAC berhasil!');
-      } catch (e) {
-        console.error(e);
-        showStatus('Gagal konversi video: ' + (e.message || e));
-      } finally {
-        setBusy(convertBtn, false, '▶ Konversi ke H.264 + AAC');
-      }
-    };
+  const stopBtn = $('convStop');
+  if (stopBtn) {
+    stopBtn.onclick = function(){ fetch(API+'/cancel',{method:'POST'}); };
   }
+
+  // Check initial connection
+  fetch(API+'/status',{mode:'no-cors'}).then(function(){
+    const logDiv = $('convLog');
+    if (logDiv && !logDiv.textContent) logDiv.textContent = 'Terhubung ke server lokal ffmpeg (port 8765). Siap dipakai.';
+  }).catch(function(){
+    const logDiv = $('convLog');
+    if (logDiv) logDiv.textContent = 'Server ffmpeg belum jalan. Jalankan jalankan-konverter.bat terlebih dahulu, lalu muat ulang tab ini.';
+  });
 }
