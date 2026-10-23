@@ -377,47 +377,43 @@
         
         <div class="remover-layout">
           <section class="remover-stage">
-            <div class="remover-wrap" id="removerWrap"><canvas id="removerView" width="360" height="640"></canvas></div>
+            <div class="remover-wrap" id="wrap"><canvas id="view" width="360" height="640"></canvas></div>
             <div class="remover-bar">
-              <button type="button" id="removerPlay" disabled>Putar</button>
-              <input type="range" id="removerSeek" min="0" max="1000" value="0" disabled aria-label="Posisi video">
-              <span id="removerTime">0:00</span>
+              <button type="button" id="play" disabled>Putar</button>
+              <input type="range" id="seek" min="0" max="1000" value="0" disabled aria-label="Posisi video">
+              <span id="time">0:00</span>
             </div>
           </section>
 
           <aside class="remover-panel">
             <label>Video
-              <input type="file" id="removerFile" accept="video/*">
+              <input type="file" id="file" accept="video/*">
             </label>
             <div class="row">
-              <button type="button" id="removerTBrush" class="on">Brush</button>
-              <button type="button" id="removerTErase">Penghapus</button>
-              <button type="button" id="removerUndo">Urungkan</button>
-              <button type="button" id="removerClear">Kosongkan</button>
+              <button type="button" id="tBrush" class="on">Brush</button>
+              <button type="button" id="tErase">Penghapus</button>
+              <button type="button" id="undo">Urungkan</button>
+              <button type="button" id="clear">Kosongkan</button>
             </div>
             <label>Ukuran brush
-              <input type="range" id="removerSize" min="10" max="240" value="70">
+              <input type="range" id="size" min="10" max="240" value="70">
             </label>
             <label>Kekuatan blur
-              <input type="range" id="removerBlur" min="4" max="60" value="28">
-            </label>
-            <label>Nama file hasil (tanpa ekstensi)
-              <input type="text" id="removerFilename" placeholder="AnaStudio_1" value="" maxlength="120" autocomplete="off">
-              <span style="font-size:12px;color:var(--mut);">Kosongkan untuk memakai nama default AnaStudio_1.</span>
+              <input type="range" id="blur" min="4" max="60" value="28">
             </label>
             <label>Gaya
-              <select id="removerStyle"><option value="frost">Kaca es</option><option value="blur">Blur polos</option></select>
+              <select id="style"><option value="frost">Kaca es</option><option value="blur">Blur polos</option></select>
             </label>
-            <label class="chk"><input type="checkbox" id="removerFx" checked> Pratinjau efek</label>
-            <label class="chk"><input type="checkbox" id="removerShowMask" checked> Tampilkan area brush (merah)</label>
+            <label class="chk"><input type="checkbox" id="fx" checked> Pratinjau efek</label>
+            <label class="chk"><input type="checkbox" id="showMask" checked> Tampilkan area brush (merah)</label>
             <div class="row">
-              <button type="button" id="removerSave">Simpan area ini</button>
+              <button type="button" id="save">Simpan area ini</button>
             </div>
-            <button type="button" id="removerRender" class="primary" disabled>Render video</button>
-            <div id="removerStatus" style="color:#94a3b8;font-size:13px;min-height:20px;">Pilih video untuk mulai.</div>
-            <div id="removerOut" style="display:none;flex-direction:column;gap:8px;">
-              <video id="removerResult" controls playsinline style="width:100%;max-height:300px;border-radius:6px;background:#000"></video>
-              <a class="dl" id="removerDl" style="color:#2dd4bf;font-weight:600;">Unduh hasil</a>
+            <button type="button" id="render" class="main" disabled>Render video</button>
+            <div id="wtStatus" style="color:#94a3b8;font-size:13px;min-height:20px;">Pilih video untuk mulai.</div>
+            <div id="out" style="display:none;flex-direction:column;gap:8px;">
+              <video id="result" controls playsinline style="width:100%;max-height:300px;border-radius:6px;background:#000"></video>
+              <a class="dl" id="dl" style="color:#2dd4bf;font-weight:600;">Unduh hasil</a>
             </div>
           </aside>
         </div>
