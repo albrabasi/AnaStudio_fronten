@@ -421,7 +421,18 @@
 
       <!-- VIDEO CONVERTER PANEL -->
       <section id="videoConverterPanel" class="panel">
-        <div class="notice"><strong>Konverter H.265 &rarr; H.264 + AAC</strong><br>Memakai ffmpeg lokal yang dijalankan via `jalankan-konverter.bat`. Semua diproses lokal, tidak ada yang diunggah ke internet.</div>
+        <div class="notice">
+          <strong>Konverter H.265 &rarr; H.264 + AAC (Server Lokal)</strong><br>
+          Untuk menghindari error browser (CORS / WebAssembly Worker), konverter ini menggunakan server PowerShell lokal di port 8765.<br>
+          <strong>Langkah 1:</strong> Jalankan file <code style="background:#1e293b;padding:2px 6px;border-radius:4px;color:#2dd4bf;">jalankan-konverter.bat</code> di folder proyek.<br>
+          <strong>Langkah 2:</strong> Pastikan jendela CMD/PowerShell tetap terbuka, lalu pilih file video di bawah.
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <button type="button" class="primary" id="convCheckBtn" style="background:#334155;margin:0;padding:10px 16px;font-size:14px;">🔄 Cek Koneksi Server</button>
+          <button type="button" class="primary" id="convCopyCmdBtn" style="background:#1e293b;border:1px solid #14b8a6;color:#14b8a6;margin:0;padding:10px 16px;font-size:14px;">📋 Salin Perintah CMD</button>
+        </div>
+        <div id="convServerStatus" style="margin-bottom:16px;font-size:13px;font-weight:600;color:#94a3b8;">Status Server: Mengecek koneksi ke http://localhost:8765...</div>
         
         <label id="convDrop" for="convF" style="display:block;border:2px dashed #334155;border-radius:12px;padding:28px 12px;text-align:center;cursor:pointer;color:#94a3b8;background:#0b0f19;">
           Klik atau seret video ke sini
