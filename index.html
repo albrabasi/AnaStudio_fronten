@@ -421,63 +421,44 @@
 
       <!-- VIDEO CONVERTER PANEL -->
       <section id="videoConverterPanel" class="panel">
-        <div class="notice"><strong>Konverter MP4 H.265 (HEVC) ke H.264 + AAC</strong><br>Ubah video H.265 ke H.264 dengan audio AAC agar kompatibel di semua perangkat, pemutar video, dan platform media sosial. Diproses secara aman di browser.</div>
+        <div class="notice"><strong>Konverter H.265 &rarr; H.264 + AAC</strong><br>Memakai ffmpeg lokal yang dijalankan via `jalankan-konverter.bat`. Semua diproses lokal, tidak ada yang diunggah ke internet.</div>
         
-        <label for="videoConverterInput">File Video (MP4 / H.265)</label>
-        <div class="upload" id="videoConverterBox">
-          <div style="font-size:42px">🎞️＋</div>
-          <strong>Pilih atau Drag File Video</strong>
-          <small>MP4, MOV (disarankan < 50MB, durasi ~15 detik)</small>
-          <input id="videoConverterInput" type="file" accept="video/mp4,video/quicktime,video/*" hidden>
-        </div>
-
-        <div id="videoConverterInfo" style="margin:12px 0;font-size:14px;color:#94a3b8;display:none;"></div>
+        <label id="convDrop" for="convF" style="display:block;border:2px dashed #334155;border-radius:12px;padding:28px 12px;text-align:center;cursor:pointer;color:#94a3b8;background:#0b0f19;">
+          Klik atau seret video ke sini
+          <input type="file" id="convF" accept="video/*,.mp4,.mov,.mkv" hidden>
+        </label>
+        <div id="convInfo" style="margin:10px 0;font-size:0.9rem;color:#94a3b8;word-break:break-all;"></div>
         
-        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;">
-          <!-- Source Video Preview -->
-          <div style="flex:1;min-width:280px;background:#0b0f19;padding:16px;border-radius:16px;border:1px solid #1e293b;">
-            <label style="margin-bottom:10px;">Video Asli (H.265)</label>
-            <div style="position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:12px;display:flex;justify-content:center;align-items:center;min-height:180px;">
-              <video id="videoConverterSourcePreview" playsinline style="width:100%;max-height:240px;object-fit:contain;display:none;"></video>
-              <div id="sourcePlaceholder" style="color:#64748b;font-size:14px;">Belum ada video dipilih</div>
-            </div>
-            <div class="remover-bar" id="sourceControlBar" style="display:none;">
-              <button type="button" id="sourcePlayBtn" disabled>▶ Putar</button>
-              <input type="range" id="sourceSeek" min="0" max="1000" value="0" disabled aria-label="Posisi video asli">
-              <span id="sourceTime" style="font-size:12px;color:#94a3b8;min-width:45px;text-align:right;">0:00</span>
-            </div>
-          </div>
-
-          <!-- Result Video Preview -->
-          <div style="flex:1;min-width:280px;background:#0b0f19;padding:16px;border-radius:16px;border:1px solid #1e293b;">
-            <label style="margin-bottom:10px;">Video Hasil (H.264 + AAC)</label>
-            <div style="position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:12px;display:flex;justify-content:center;align-items:center;min-height:180px;">
-              <video id="videoConverterResultPreview" playsinline style="width:100%;max-height:240px;object-fit:contain;display:none;"></video>
-              <div id="resultPlaceholder" style="color:#64748b;font-size:14px;">Belum dikonversi</div>
-            </div>
-            <div class="remover-bar" id="resultControlBar" style="display:none;">
-              <button type="button" id="resultPlayBtn" disabled>▶ Putar</button>
-              <input type="range" id="resultSeek" min="0" max="1000" value="0" disabled aria-label="Posisi video hasil">
-              <span id="resultTime" style="font-size:12px;color:#94a3b8;min-width:45px;text-align:right;">0:00</span>
-            </div>
-          </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin:14px 0;">
+          <label style="flex:1;min-width:150px;font-size:0.85rem;color:#94a3b8;">Resolusi maksimal
+            <select id="convRes" style="width:100%;margin-top:4px;padding:9px;border-radius:8px;border:1px solid #334155;background:#090d16;color:#f8fafc;font-size:1rem;">
+              <option value="0">Sama seperti asli</option>
+              <option value="1080">1080p</option>
+              <option value="720" selected>720p (disarankan untuk WA)</option>
+              <option value="480">480p</option>
+            </select>
+          </label>
+          <label style="flex:1;min-width:150px;font-size:0.85rem;color:#94a3b8;">Kualitas
+            <select id="convCrf" style="width:100%;margin-top:4px;padding:9px;border-radius:8px;border:1px solid #334155;background:#090d16;color:#f8fafc;font-size:1rem;">
+              <option value="20">Tinggi (file lebih besar)</option>
+              <option value="24" selected>Seimbang</option>
+              <option value="28">Hemat ukuran</option>
+            </select>
+          </label>
         </div>
 
-        <div id="ffmpegProgressContainer" style="display:none;margin-bottom:16px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;">
-            <span id="ffmpegStatusText">Memproses konversi...</span>
-            <span id="ffmpegPercentText">0%</span>
-          </div>
-          <div style="background:#1e293b;border-radius:8px;height:10px;overflow:hidden;">
-            <div id="ffmpegProgressBar" style="background:#14b8a6;width:0%;height:100%;transition:width 0.2s;"></div>
-          </div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button type="button" class="primary" id="convGo" disabled>Konversi</button>
+          <button type="button" class="primary" id="convStop" style="background:#475569" hidden>Batalkan</button>
         </div>
 
-        <label for="videoOutputName">Nama File Hasil (tanpa ekstensi)</label>
-        <input id="videoOutputName" placeholder="AnaVideo_Converted" maxlength="80" value="AnaVideo_H264">
-
-        <button class="primary" id="startConvertButton" disabled>▶ Konversi ke H.264 + AAC</button>
-        <a class="download" id="videoConverterDownloadButton" style="display:none;margin-top:16px;">Download Video H.264 (.mp4)</a>
+        <progress id="convP" value="0" max="100" hidden style="width:100%;height:12px;margin-top:16px;accent-color:#14b8a6;"></progress>
+        <div id="convLog" style="margin-top:8px;font-size:0.85rem;color:#94a3b8;white-space:pre-wrap;min-height:1.3em;"></div>
+        
+        <div id="convOut" hidden style="margin-top:18px;">
+          <video id="convV" controls playsinline style="width:100%;border-radius:10px;background:#000;margin-bottom:12px;max-height:60vh;"></video>
+          <a id="convDl" class="download" href="#" onclick="this.href='http://localhost:8765/download'" style="display:inline-block;background:#14b8a6;color:#070b14;padding:12px 20px;border-radius:10px;font-weight:600;text-decoration:none;">Unduh MP4</a>
+        </div>
       </section>
 
       <div id="status" class="status"></div>
