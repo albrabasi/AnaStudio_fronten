@@ -768,173 +768,123 @@ $('resetDirectorButton')?.addEventListener('click', () => {
 
 
 /* ==========================================
-   WT REMOVER — terintegrasi dengan panel AnaStudio
+   WT REMOVER — terintegrasi dengan panel AnaStudio (berdasarkan Wt_remover.html)
    ========================================== */
 function initWtRemover() {
-  const view = $('removerView');
+  const view = $('view');
   if (!view) return;
   
   if (view.dataset.initialized === 'true') return;
   view.dataset.initialized = 'true';
 
-  const vctx = view.getContext('2d');
-  const video = document.createElement('video'); 
-  video.playsInline = true;
-  
-  const mk = () => { const c = document.createElement('canvas'); return [c, c.getContext('2d', { willReadFrequently: true })]; };
-  const [mask, mctx] = mk(), [tint, tctx] = mk(), [small, sctx] = mk(), [small2, s2ctx] = mk(), [tmp, xctx] = mk();
+  const vctx = view.getContext('2d', { alpha: false });
+  const video = document.createElement('video'); video.playsInline = true;
+  video.preload = 'auto'; video.setAttribute('playsinline', '');
+  video.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+  document.body.appendChild(video);
+  video.onerror = () => say('Video tidak bisa dibaca browser ini. Coba Chrome/Edge di komputer, atau ubah videonya ke MP4 H.264.');
+  video.onloadeddata = () => { dirty = boxDirty = true; };
+  const mk = rd => { const c = document.createElement('canvas'); return [c, c.getContext('2d', rd ? { willReadFrequently: true } : undefined)]; };
+  const [mask, mctx] = mk(true), [mini, mnctx] = mk(true), [tint, tctx] = mk(), [small, sctx] = mk(), [small2, s2ctx] = mk(), [tmp, xctx] = mk();
+  let boxes = [], boxDirty = true;
   const P = 40, DOWN = 6;
-  let W = 0, H = 0, tool = 'brush', drawing = false, last = null, dirty = true, recording = false, undoStack = [];
+  let W = 0, H = 0, tool = 'brush', drawing = false, last = null, dirty = boxDirty = true, recording = false, undoStack = [];
 
-  function fmt(t) { t = Math.max(0, t|0); return Math.floor(t/60) + ':' + String(t%60).padStart(2,'0'); }
-  function say(t) { if ($('removerStatus')) $('removerStatus').textContent = t; }
+  function fmt(t){ t = Math.max(0, t|0); return Math.floor(t/60) + ':' + String(t%60).padStart(2,'0'); }
+  function say(t){ const st = $('wtStatus'); if (st) st.textContent = t; }
 
-  let currentVideoUrl = null;
-  video.preload = 'auto';
-
-  if ($('removerFile')) {
-    $('removerFile').onchange = e => {
-      const f = e.target.files?.[0];
-      if (!f) return;
-      if (!f.type.startsWith('video/')) {
-        say('File yang dipilih bukan video.');
-        return;
-      }
-      if (currentVideoUrl) {
-        URL.revokeObjectURL(currentVideoUrl);
-      }
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-
-      currentVideoUrl = URL.createObjectURL(f);
-      video.src = currentVideoUrl;
-      video.load();
-
-      say('Memuat video: ' + f.name);
+  const fileInput = $('file');
+  if (fileInput) {
+    fileInput.onchange = e => {
+      const f = e.target.files[0]; if (!f) return;
+      video.src = URL.createObjectURL(f);
+      say('Memuat video…');
     };
   }
 
   video.onloadedmetadata = () => {
-    W = video.videoWidth;
-    H = video.videoHeight;
-
-    if (!W || !H) {
-      say('Ukuran video tidak terbaca. Coba file video lain.');
-      return;
-    }
-
-    for (const c of [view, mask, tint, tmp]) {
-      c.width = W;
-      c.height = H;
-    }
-
+    W = video.videoWidth; H = video.videoHeight;
+    for (const c of [view, mask, tint, tmp]) { c.width = W; c.height = H; }
     small.width = small2.width = Math.round(W / DOWN) + 2 * P;
     small.height = small2.height = Math.round(H / DOWN) + 2 * P;
-
-    if ($('removerWrap')) {
-      $('removerWrap').style.maxWidth = Math.round(innerHeight * 0.78 * W / H) + 'px';
-    }
-
-    undoStack = [];
-    dirty = true;
-
+    const wrapEl = $('wrap');
+    if (wrapEl) wrapEl.style.maxWidth = Math.round(innerHeight * 0.78 * W / H) + 'px';
+    undoStack = []; dirty = boxDirty = true;
     const saved = localStorage.getItem('anastudio_wt_mask_' + W + 'x' + H);
-    if (saved) {
-      const im = new Image();
-      im.onload = () => {
-        mctx.drawImage(im, 0, 0);
-        dirty = true;
-        say('Area tersimpan untuk ukuran ' + W + '×' + H + ' dimuat.');
-      };
-      im.src = saved;
-    } else {
-      say('Video ' + W + '×' + H + ' siap. Jeda di frame yang jelas, lalu brush area logo.');
-    }
-
-    if ($('removerPlay')) {
-      $('removerPlay').disabled = false;
-      $('removerPlay').textContent = '▶ Putar';
-    }
-    if ($('removerSeek')) {
-      $('removerSeek').disabled = false;
-      $('removerSeek').value = '0';
-    }
-    if ($('removerRender')) {
-      $('removerRender').disabled = false;
-    }
-    if ($('removerTime')) {
-      $('removerTime').textContent = '0:00 / ' + fmt(video.duration);
-    }
-
-    video.currentTime = 0;
+    if (saved) { const im = new Image(); im.onload = () => { mctx.drawImage(im, 0, 0); dirty = boxDirty = true; say('Area tersimpan untuk ukuran ' + W + '×' + H + ' dimuat.'); }; im.src = saved; }
+    else say('Video ' + W + '×' + H + ' siap. Jeda di frame yang jelas, lalu brush area logo.');
+    video.currentTime = 0.05;
+    for (const id of ['play','seek','render']) { const el = $(id); if (el) el.disabled = false; }
   };
 
   video.ontimeupdate = () => {
-    if (!Number.isFinite(video.duration) || video.duration <= 0) return;
-
-    if ($('removerSeek')) {
-      $('removerSeek').value = String(Math.round(video.currentTime / video.duration * 1000));
-    }
-
-    if ($('removerTime')) {
-      $('removerTime').textContent = fmt(video.currentTime) + ' / ' + fmt(video.duration);
-    }
-
-    if (recording) {
-      say('Merender… ' + Math.round(video.currentTime / video.duration * 100) + '% (biarkan tab ini tetap terbuka)');
-    }
+    if (!video.duration) return;
+    const seekEl = $('seek');
+    if (seekEl) seekEl.value = Math.round(video.currentTime / video.duration * 1000);
+    const timeEl = $('time');
+    if (timeEl) timeEl.textContent = fmt(video.currentTime) + ' / ' + fmt(video.duration);
+    if (recording) say('Merender… ' + Math.round(video.currentTime / video.duration * 100) + '% (biarkan tab ini tetap terbuka)');
   };
+  video.onplay = () => { const p = $('play'); if (p) p.textContent = 'Jeda'; };
+  video.onpause = () => { const p = $('play'); if (p) p.textContent = 'Putar'; };
+  const playBtn = $('play');
+  if (playBtn) playBtn.onclick = () => video.paused ? video.play() : video.pause();
+  const seekEl = $('seek');
+  if (seekEl) seekEl.oninput = e => { video.currentTime = e.target.value / 1000 * video.duration; };
 
-  video.onplay = () => { if ($('removerPlay')) $('removerPlay').textContent = '❚❚ Jeda'; };
-  video.onpause = () => { if ($('removerPlay')) $('removerPlay').textContent = '▶ Putar'; };
-
-  if ($('removerPlay')) {
-    $('removerPlay').onclick = async () => {
-      try {
-        if (video.paused) { await video.play(); } else { video.pause(); }
-      } catch (err) {
-        console.error('Gagal memutar video:', err);
-        say('Video gagal diputar. Coba pilih ulang file video.');
+  function computeBoxes() {
+    const mw = Math.ceil(W / 8), mh = Math.ceil(H / 8);
+    mini.width = mw; mini.height = mh;
+    mnctx.clearRect(0, 0, mw, mh); mnctx.drawImage(mask, 0, 0, mw, mh);
+    const d = mnctx.getImageData(0, 0, mw, mh).data, seen = new Uint8Array(mw * mh);
+    const blurEl = $('blur');
+    const pad = Math.ceil((blurEl ? +blurEl.value : 28) * 3 + 16);
+    boxes = [];
+    for (let i = 0; i < mw * mh; i++) {
+      if (seen[i] || d[i * 4 + 3] < 6) continue;
+      let x0 = mw, y0 = mh, x1 = 0, y1 = 0; const st = [i]; seen[i] = 1;
+      while (st.length) {
+        const j = st.pop(), x = j % mw, y = (j / mw) | 0;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        for (const n of [x > 0 ? j - 1 : -1, x < mw - 1 ? j + 1 : -1, y > 0 ? j - mw : -1, y < mh - 1 ? j + mw : -1])
+          if (n >= 0 && !seen[n] && d[n * 4 + 3] >= 6) { seen[n] = 1; st.push(n); }
       }
-    };
-  }
-
-  if ($('removerSeek')) {
-    $('removerSeek').oninput = e => {
-      if (Number.isFinite(video.duration) && video.duration > 0) {
-        video.currentTime = (Number(e.target.value) / 1000) * video.duration;
-      }
-    };
-  }
-
-  /* ---------- efek blur / kaca es di area mask ---------- */
-  function applyFx() {
-    const vw = W, vh = H, sw = small.width - 2*P, sh = small.height - 2*P;
-    sctx.drawImage(video, P, P, sw, sh);
-    sctx.drawImage(video, 0, 0, 1, vh, 0, P, P, sh);
-    sctx.drawImage(video, vw-1, 0, 1, vh, P+sw, P, P, sh);
-    sctx.drawImage(video, 0, 0, vw, 1, P, 0, sw, P);
-    sctx.drawImage(video, 0, vh-1, vw, 1, P, P+sh, sw, P);
-    
-    const blurVal = $('removerBlur') ? +$('removerBlur').value : 25;
-    s2ctx.filter = 'blur(' + (blurVal / DOWN) + 'px)';
-    s2ctx.clearRect(0, 0, small2.width, small2.height);
-    s2ctx.drawImage(small, 0, 0);
-    s2ctx.filter = 'none';
-    xctx.globalCompositeOperation = 'copy';
-    xctx.imageSmoothingQuality = 'high';
-    xctx.drawImage(small2, P, P, sw, sh, 0, 0, W, H);
-    
-    if ($('removerStyle') && $('removerStyle').value === 'frost') {
-      xctx.globalCompositeOperation = 'source-over';
-      xctx.fillStyle = 'rgba(255,255,255,.14)';
-      xctx.fillRect(0, 0, W, H);
+      const bx0 = Math.max(0, x0 * 8 - pad), by0 = Math.max(0, y0 * 8 - pad);
+      const bx1 = Math.min(W, (x1 + 1) * 8 + pad), by1 = Math.min(H, (y1 + 1) * 8 + pad);
+      boxes.push([bx0, by0, bx1 - bx0, by1 - by0]);
     }
+    boxDirty = false;
+  }
+
+  function fxBox([x, y, w, h]) {
+    const sw = Math.max(1, Math.round(w / DOWN)), sh = Math.max(1, Math.round(h / DOWN)), tw = sw + 2 * P, th = sh + 2 * P;
+    sctx.clearRect(0, 0, tw, th);
+    sctx.drawImage(video, x, y, w, h, P, P, sw, sh);
+    sctx.drawImage(video, x, y, 1, h, 0, P, P, sh);
+    sctx.drawImage(video, x + w - 1, y, 1, h, P + sw, P, P, sh);
+    sctx.drawImage(video, x, y, w, 1, P, 0, sw, P);
+    sctx.drawImage(video, x, y + h - 1, w, 1, P, P + sh, sw, P);
+    s2ctx.clearRect(0, 0, tw, th);
+    const blurEl = $('blur');
+    s2ctx.filter = 'blur(' + ((blurEl ? +blurEl.value : 28) / DOWN) + 'px)';
+    s2ctx.drawImage(small, 0, 0, tw, th, 0, 0, tw, th);
+    s2ctx.filter = 'none';
+    xctx.save();
+    xctx.beginPath(); xctx.rect(x, y, w, h); xctx.clip();
+    xctx.clearRect(x, y, w, h);
+    xctx.imageSmoothingQuality = 'high';
+    xctx.drawImage(small2, P, P, sw, sh, x, y, w, h);
+    const styleEl = $('style');
+    if (styleEl && styleEl.value === 'frost') { xctx.fillStyle = 'rgba(255,255,255,.14)'; xctx.fillRect(x, y, w, h); }
     xctx.globalCompositeOperation = 'destination-in';
     xctx.drawImage(mask, 0, 0);
-    xctx.globalCompositeOperation = 'source-over';
-    vctx.drawImage(tmp, 0, 0);
+    xctx.restore();
+    vctx.drawImage(tmp, x, y, w, h, x, y, w, h);
+  }
+
+  function applyFx() {
+    if (boxDirty) computeBoxes();
+    for (const b of boxes) fxBox(b);
   }
 
   function drawTint() {
@@ -946,27 +896,29 @@ function initWtRemover() {
     vctx.drawImage(tint, 0, 0);
   }
 
-  function frame() {
-    if (W && video.readyState >= video.HAVE_CURRENT_DATA) {
-      vctx.drawImage(video, 0, 0, W, H);
-      const fxChecked = $('removerFx') ? $('removerFx').checked : true;
-      if (fxChecked || recording) applyFx();
-      const showMaskChecked = $('removerShowMask') ? $('removerShowMask').checked : true;
-      if (!recording && showMaskChecked) drawTint();
-    }
-    requestAnimationFrame(frame);
+  function paint() {
+    if (!W) return;
+    vctx.drawImage(video, 0, 0, W, H);
+    const fxEl = $('fx');
+    if ((fxEl && fxEl.checked) || recording) applyFx();
+    const showMaskEl = $('showMask');
+    if (!recording && (showMaskEl && showMaskEl.checked)) drawTint();
   }
+  function frame() { if (!recording) paint(); requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
 
-  /* ---------- brush ---------- */
+  const blurEl = $('blur'), sizeEl = $('size');
+  if (blurEl) blurEl.oninput = () => { boxDirty = true; };
+  if (sizeEl) sizeEl.oninput = () => { boxDirty = true; };
+
   const pos = e => { const r = view.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; };
   function stroke(a, b) {
-    const s = $('removerSize') ? +$('removerSize').value : 40;
+    const s = sizeEl ? +sizeEl.value : 70;
     mctx.globalCompositeOperation = tool === 'brush' ? 'source-over' : 'destination-out';
     mctx.strokeStyle = '#fff'; mctx.shadowColor = '#fff'; mctx.shadowBlur = s * 0.3;
     mctx.lineWidth = s; mctx.lineCap = 'round'; mctx.lineJoin = 'round';
     mctx.beginPath(); mctx.moveTo(a.x, a.y); mctx.lineTo(b.x + 0.01, b.y); mctx.stroke();
-    mctx.shadowBlur = 0; dirty = true;
+    mctx.shadowBlur = 0; dirty = boxDirty = true;
   }
   function pushUndo() { undoStack.push(mctx.getImageData(0, 0, W, H)); if (undoStack.length > 8) undoStack.shift(); }
   
@@ -977,142 +929,52 @@ function initWtRemover() {
   view.addEventListener('pointermove', e => { if (drawing) { const p = pos(e); stroke(last, p); last = p; } });
   for (const ev of ['pointerup', 'pointercancel']) view.addEventListener(ev, () => drawing = false);
 
-  if ($('removerTBrush')) $('removerTBrush').onclick = () => { tool = 'brush'; $('removerTBrush').classList.add('on'); if ($('removerTErase')) $('removerTErase').classList.remove('on'); };
-  if ($('removerTErase')) $('removerTErase').onclick = () => { tool = 'erase'; $('removerTErase').classList.add('on'); if ($('removerTBrush')) $('removerTBrush').classList.remove('on'); };
-  if ($('removerUndo')) $('removerUndo').onclick = () => { const d = undoStack.pop(); if (d) { mctx.putImageData(d, 0, 0); dirty = true; } };
-  if ($('removerClear')) $('removerClear').onclick = () => { if (!W) return; pushUndo(); mctx.clearRect(0, 0, W, H); dirty = true; };
-  if ($('removerSave')) $('removerSave').onclick = () => { if (!W) return; localStorage.setItem('anastudio_wt_mask_' + W + 'x' + H, mask.toDataURL()); say('Area disimpan. Akan dimuat otomatis untuk video ' + W + '×' + H + '.'); };
+  const tBrush = $('tBrush'), tErase = $('tErase'), undoBtn = $('undo'), clearBtn = $('clear'), saveBtn = $('save');
+  if (tBrush) tBrush.onclick = () => { tool = 'brush'; tBrush.classList.add('on'); if (tErase) tErase.classList.remove('on'); };
+  if (tErase) tErase.onclick = () => { tool = 'erase'; tErase.classList.add('on'); if (tBrush) tBrush.classList.remove('on'); };
+  if (undoBtn) undoBtn.onclick = () => { const d = undoStack.pop(); if (d) { mctx.putImageData(d, 0, 0); dirty = boxDirty = true; } };
+  if (clearBtn) clearBtn.onclick = () => { if (!W) return; pushUndo(); mctx.clearRect(0, 0, W, H); dirty = boxDirty = true; };
+  if (saveBtn) saveBtn.onclick = () => { if (!W) return; localStorage.setItem('anastudio_wt_mask_' + W + 'x' + H, mask.toDataURL()); say('Area disimpan. Akan dimuat otomatis untuk video ' + W + '×' + H + '.'); };
 
-  /* ---------- render (Precision Frame Capture with requestVideoFrameCallback) ---------- */
+  const renderBtn = $('render');
   const once = (el, ev) => new Promise(r => el.addEventListener(ev, r, { once: true }));
-  if ($('removerRender')) {
-    $('removerRender').onclick = async () => {
+  if (renderBtn) {
+    renderBtn.onclick = async () => {
       if (!W || recording) return;
-      const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+      const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
       const mime = window.MediaRecorder && types.find(t => MediaRecorder.isTypeSupported(t));
       if (!mime) { say('Browser ini belum mendukung perekaman video. Gunakan Chrome atau Edge.'); return; }
-      
-      recording = true; 
-      $('removerRender').disabled = true; 
-      if ($('removerOut')) $('removerOut').style.display = 'none';
-      
-      say('Mempersiapkan render presisi tinggi...');
+      recording = true; renderBtn.disabled = true; 
+      const outDiv = $('out');
+      if (outDiv) outDiv.style.display = 'none';
       video.pause();
-      video.currentTime = 0;
-      await once(video, 'seeked');
-
-      const duration = video.duration;
-      if (!duration || isNaN(duration)) {
-        say('Durasi video tidak valid.');
-        recording = false;
-        $('removerRender').disabled = false;
-        return;
-      }
-
-      // Use captureStream(0) for manual frame pushing via requestFrame()
-      const stream = view.captureStream(0);
-      const videoTrack = stream.getVideoTracks()[0];
-
-      // Capture audio cleanly using Web Audio API
-      let audioDestination = null;
-      try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioCtx.createMediaElementSource(video);
-        audioDestination = audioCtx.createMediaStreamDestination();
-        source.connect(audioDestination);
-        source.connect(audioCtx.destination);
-        audioDestination.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-      } catch (err) {
-        console.warn('Web Audio capture warning:', err);
-        try {
-          const vStream = video.captureStream();
-          vStream.getAudioTracks().forEach(t => stream.addTrack(t));
-        } catch(_) {}
-      }
-
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 25e6 });
-      const chunks = [];
-      
-      rec.ondataavailable = e => { 
-        if (e.data && e.data.size > 0) chunks.push(e.data); 
+      if (video.currentTime > 0) { video.currentTime = 0; await once(video, 'seeked'); }
+      const canReq = window.CanvasCaptureMediaStreamTrack && 'requestFrame' in CanvasCaptureMediaStreamTrack.prototype;
+      const stream = view.captureStream(canReq ? 0 : 30);
+      const vt = stream.getVideoTracks()[0];
+      const step = () => {
+        if (!recording) return;
+        paint(); if (canReq) vt.requestFrame();
+        if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(step); else requestAnimationFrame(step);
       };
-      
+      try { video.captureStream().getAudioTracks().forEach(t => stream.addTrack(t)); } catch (_) {}
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 });
+      const chunks = [];
+      rec.ondataavailable = e => e.data.size && chunks.push(e.data);
       rec.onstop = () => {
         const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-        const filenameInput = $('removerFilename')?.value.trim();
-        const baseName = (filenameInput || 'AnaStudio_WatermarkRemoved').replace(/[^a-zA-Z0-9_-]/g, '_');
-        const downloadName = `${baseName}.${ext}`;
-
-        const blob = new Blob(chunks, { type: mime.split(';')[0] });
-        const url = URL.createObjectURL(blob);
-        
-        if ($('removerResult')) $('removerResult').src = url;
-        if ($('removerDl')) { 
-          $('removerDl').href = url; 
-          $('removerDl').download = downloadName; 
-          $('removerDl').textContent = `Unduh hasil (${downloadName})`;
-        }
-        if ($('removerOut')) $('removerOut').style.display = 'grid';
-        
-        recording = false; 
-        $('removerRender').disabled = false; 
-        dirty = true;
-        say('Render selesai! Silakan periksa hasil dan unduh.');
+        const url = URL.createObjectURL(new Blob(chunks, { type: mime.split(';')[0] }));
+        const resEl = $('result');
+        if (resEl) resEl.src = url; 
+        const dlEl = $('dl');
+        if (dlEl) { dlEl.href = url; dlEl.download = 'video-bersih.' + ext; }
+        if (outDiv) outDiv.style.display = 'grid';
+        recording = false; renderBtn.disabled = false; dirty = boxDirty = true;
+        say('Selesai. Periksa hasilnya, lalu unduh.');
       };
-
-      video.onended = () => { 
-        video.onended = null; 
-        if (rec.state === 'recording') {
-          rec.stop(); 
-        }
-      };
-
-      try {
-        rec.start();
-        video.playbackRate = 1.0;
-        await video.play();
-
-        const onFrame = (now, metadata) => {
-          if (!recording) return;
-          if (video.ended || video.paused || video.currentTime >= duration) {
-            video.pause();
-            if (rec.state === 'recording') {
-              rec.stop();
-            }
-            return;
-          }
-
-          if (video.readyState >= video.HAVE_CURRENT_DATA) {
-            vctx.drawImage(video, 0, 0, W, H);
-            applyFx();
-            if (videoTrack && typeof videoTrack.requestFrame === 'function') {
-              videoTrack.requestFrame();
-            }
-          }
-
-          const pct = Math.round((video.currentTime / duration) * 100);
-          say(`Merender video (Presisi Frame)... ${pct}% (${video.currentTime.toFixed(1)}s / ${duration.toFixed(1)}s)`);
-
-          if (typeof video.requestVideoFrameCallback === 'function') {
-            video.requestVideoFrameCallback(onFrame);
-          } else {
-            requestAnimationFrame(onFrame);
-          }
-        };
-
-        if (typeof video.requestVideoFrameCallback === 'function') {
-          video.requestVideoFrameCallback(onFrame);
-        } else {
-          requestAnimationFrame(onFrame);
-        }
-
-      } catch (err) {
-        console.error('Gagal memulai render video:', err);
-        say('Gagal merender video: ' + err.message);
-        recording = false;
-        $('removerRender').disabled = false;
-        try { rec.stop(); } catch(_) {}
-      }
+      video.onended = () => { video.onended = null; rec.stop(); };
+      rec.start(); paint(); if (canReq) vt.requestFrame();
+      await video.play(); step();
     };
   }
 }
