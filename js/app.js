@@ -977,7 +977,140 @@ function initWtRemover() {
       await video.play(); step();
     };
   }
+
+  setupTelegramIntegration('wtTgSend', 'wtTgStatus', () => $('result')?.src);
 }
+
+function initTelegramModal() {
+  const modal = $('telegramModal');
+  const openBtn = $('openTelegramModalBtn');
+  const closeBtn = $('closeTelegramModal');
+  const saveBtn = $('saveTelegramModalBtn');
+  const tokenInput = $('modalTgToken');
+  const chatIdInput = $('modalTgChatId');
+  const statusEl = $('modalTgStatus');
+
+  if (tokenInput) tokenInput.value = localStorage.getItem('telegram_bot_token') || '';
+  if (chatIdInput) chatIdInput.value = localStorage.getItem('telegram_chat_id') || '';
+
+  if (openBtn) {
+    openBtn.onclick = () => {
+      if (modal) {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('director-modal-open');
+      }
+      if (tokenInput) tokenInput.value = localStorage.getItem('telegram_bot_token') || '';
+      if (chatIdInput) chatIdInput.value = localStorage.getItem('telegram_chat_id') || '';
+      if (statusEl) statusEl.textContent = '';
+    };
+  }
+
+  const closeModal = () => {
+    if (modal) {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('director-modal-open');
+    }
+  };
+
+  if (closeBtn) closeBtn.onclick = closeModal;
+  if (modal) modal.onclick = e => { if (e.target === modal) closeModal(); };
+
+  if (saveBtn) {
+    saveBtn.onclick = () => {
+      const token = tokenInput ? tokenInput.value.trim() : '';
+      const chatId = chatIdInput ? chatIdInput.value.trim() : '';
+      if (!token || !chatId) {
+        if (statusEl) { statusEl.textContent = '❌ Bot Token & Chat ID wajib diisi.'; statusEl.style.color = '#f87171'; }
+        return;
+      }
+      localStorage.setItem('telegram_bot_token', token);
+      localStorage.setItem('telegram_chat_id', chatId);
+      if (statusEl) {
+        statusEl.textContent = '✅ Berhasil disimpan ke browser (localStorage)!';
+        statusEl.style.color = '#2dd4bf';
+      }
+      setTimeout(closeModal, 1000);
+    };
+  }
+}
+
+function setupTelegramIntegration(sendBtnId, statusId, getFileBlobOrUrlFunc) {
+  const sendBtn = $(sendBtnId);
+  const statusEl = $(statusId);
+
+  if (sendBtn) {
+    sendBtn.onclick = async () => {
+      const token = localStorage.getItem('telegram_bot_token');
+      const chatId = localStorage.getItem('telegram_chat_id');
+      if (!token || !chatId) {
+        if (statusEl) {
+          statusEl.textContent = '⚠️ Konfigurasi Telegram belum diisi! Klik tombol "🤖 Telegram Bot" di atas.';
+          statusEl.style.color = '#facc15';
+        }
+        const modal = $('telegramModal');
+        if (modal) {
+          modal.classList.add('open');
+          modal.setAttribute('aria-hidden', 'false');
+          document.body.classList.add('director-modal-open');
+        }
+        return;
+      }
+      const source = typeof getFileBlobOrUrlFunc === 'function' ? getFileBlobOrUrlFunc() : null;
+      if (!source) {
+        if (statusEl) {
+          statusEl.textContent = '❌ Belum ada file video hasil proses.';
+          statusEl.style.color = '#f87171';
+        }
+        return;
+      }
+
+      sendBtn.disabled = true;
+      if (statusEl) {
+        statusEl.textContent = '⏳ Mengirim video ke Telegram...';
+        statusEl.style.color = '#facc15';
+      }
+
+      try {
+        let blob = source;
+        if (typeof source === 'string') {
+          const resp = await fetch(source);
+          blob = await resp.blob();
+        }
+
+        const formData = new FormData();
+        formData.append('chat_id', chatId);
+        formData.append('video', blob, 'AnaStudio_Result.mp4');
+        formData.append('caption', '🎬 Video berhasil diproses via AnaStudio Pro');
+
+        const tgResp = await fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+          method: 'POST',
+          body: formData
+        });
+        const tgData = await tgResp.json();
+
+        if (tgData.ok) {
+          if (statusEl) {
+            statusEl.textContent = '✅ Berhasil! Video terkirim ke Telegram.';
+            statusEl.style.color = '#2dd4bf';
+          }
+        } else {
+          throw new Error(tgData.description || 'Gagal mengirim video.');
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.textContent = '❌ Gagal: ' + err.message;
+          statusEl.style.color = '#f87171';
+        }
+      } finally {
+        sendBtn.disabled = false;
+      }
+    };
+  }
+}
+
+initTelegramModal();
 
 /* ==========================================
    VIDEO CONVERTER — terintegrasi dengan server lokal (berdasarkan konverter-h265-ke-h264.html)
@@ -1150,4 +1283,5 @@ function initVideoConverter() {
   }
 
   checkServerConnection();
+  setupTelegramIntegration('convTgSend', 'convTgStatus', () => $('convV')?.src);
 }
