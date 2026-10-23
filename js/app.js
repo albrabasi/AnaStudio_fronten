@@ -1022,6 +1022,54 @@ function initVideoConverter() {
     const stop = $('convStop'); if (stop) stop.hidden = true;
   }
 
+  async function checkServerConnection() {
+    const statusEl = $('convServerStatus');
+    if (statusEl) statusEl.textContent = 'Status Server: Mengecek koneksi ke http://localhost:8765...';
+    try {
+      const res = await fetch(API + '/status', { method: 'GET' });
+      if (res.ok || res.status < 500) {
+        if (statusEl) {
+          statusEl.textContent = 'Status Server: ✅ Terhubung ke server lokal (Port 8765)';
+          statusEl.style.color = '#2dd4bf';
+        }
+        return true;
+      }
+    } catch {
+      try {
+        await fetch(API + '/status', { mode: 'no-cors' });
+        if (statusEl) {
+          statusEl.textContent = 'Status Server: ✅ Terhubung ke server lokal (Port 8765)';
+          statusEl.style.color = '#2dd4bf';
+        }
+        return true;
+      } catch {
+        if (statusEl) {
+          statusEl.textContent = 'Status Server: ❌ Belum terhubung. Jalankan jalankan-konverter.bat terlebih dahulu!';
+          statusEl.style.color = '#f87171';
+        }
+        return false;
+      }
+    }
+  }
+
+  const checkBtn = $('convCheckBtn');
+  if (checkBtn) {
+    checkBtn.onclick = checkServerConnection;
+  }
+
+  const copyCmdBtn = $('convCopyCmdBtn');
+  if (copyCmdBtn) {
+    copyCmdBtn.onclick = async () => {
+      const cmdText = 'cmd.exe /c jalankan-konverter.bat';
+      try {
+        await navigator.clipboard.writeText(cmdText);
+        showStatus('Perintah CMD berhasil disalin ke clipboard: ' + cmdText);
+      } catch {
+        showStatus('Gagal menyalin otomatis. Silakan jalankan jalankan-konverter.bat secara manual.');
+      }
+    };
+  }
+
   function check() {
     fetch(API+'/status').then(function(r){return r.json()}).then(function(s){
       const el = (Date.now()-t0)/1000;
@@ -1101,12 +1149,5 @@ function initVideoConverter() {
     stopBtn.onclick = function(){ fetch(API+'/cancel',{method:'POST'}); };
   }
 
-  // Check initial connection
-  fetch(API+'/status',{mode:'no-cors'}).then(function(){
-    const logDiv = $('convLog');
-    if (logDiv && !logDiv.textContent) logDiv.textContent = 'Terhubung ke server lokal ffmpeg (port 8765). Siap dipakai.';
-  }).catch(function(){
-    const logDiv = $('convLog');
-    if (logDiv) logDiv.textContent = 'Server ffmpeg belum jalan. Jalankan jalankan-konverter.bat terlebih dahulu, lalu muat ulang tab ini.';
-  });
+  checkServerConnection();
 }
